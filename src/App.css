@@ -1,0 +1,21 @@
+/* App.css - Minimal styles as Tailwind CSS handles most styling */
+
+/* Smooth scrolling behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Animation for fade-in on load */
+@keyframes fadeInPage {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body {
+  animation: fadeInPage 0.3s ease-in;
+}
+
