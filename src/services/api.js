@@ -1,25 +1,17 @@
 import axios from 'axios';
 import { fakeMovies, getFakeMovieDetails, getFakeMovies } from '../utils/fakeMovies';
 
-const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
-const API_URL = import.meta.env.VITE_OMDB_API_URL || 'https://www.omdbapi.com';
-const API_KEY_ERROR =
-  'OMDb API key is missing. Add a real VITE_OMDB_API_KEY in .env, then restart the dev server.';
+const API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
+const API_ERROR =
+  'Backend API is unavailable. Ensure FastAPI server is running and properly configured.';
 
-const omdb = axios.create({
+const apiClient = axios.create({
   baseURL: API_URL,
   timeout: 10000,
 });
 
-const hasValidApiKey = () =>
-  Boolean(API_KEY && API_KEY.trim() && API_KEY !== 'your_api_key_here');
-
-if (!hasValidApiKey()) {
-  console.warn(API_KEY_ERROR);
-}
-
 /**
- * Fetch movies from OMDb API
+ * Fetch movies from backend API
  * @param {string} searchTerm - Movie title to search for
  * @param {number} page - Page number (default: 1)
  * @returns {Promise} - Response from API
@@ -34,41 +26,26 @@ export const searchMovies = async (searchTerm, page = 1) => {
       };
     }
 
-    if (!hasValidApiKey()) {
-      const fakeResults = getFakeMovies(searchTerm);
-      return {
-        success: true,
-        isFallback: true,
-        error: '',
-        data: {
-          Search: paginate(fakeResults, page),
-          totalResults: fakeResults.length,
-        },
-      };
-    }
-
-    const { data } = await omdb.get('', {
+    const { data } = await apiClient.get('/movies/search', {
       params: {
-        apikey: API_KEY,
-        s: searchTerm,
+        title: searchTerm,
         page,
-        type: 'movie',
       },
     });
-
-    if (data.Response === 'False') {
-      return {
-        success: false,
-        error: data.Error || 'No movies found',
-        data: { Search: [], totalResults: '0' },
-      };
-    }
 
     return {
       success: true,
       data: {
-        Search: normalizeMovies(data.Search || []),
-        totalResults: parseInt(data.totalResults || 0, 10),
+        Search: normalizeMovies(
+          (data.results || []).map((movie) => ({
+            imdbID: movie.imdb_id,
+            Title: movie.title,
+            Year: movie.year,
+            Type: movie.type,
+            Poster: movie.poster,
+          }))
+        ),
+        totalResults: Number(data.total_results || 0),
       },
     };
   } catch (error) {
@@ -89,7 +66,7 @@ export const searchMovies = async (searchTerm, page = 1) => {
 
     return {
       success: false,
-      error: 'Unable to reach OMDb. Check your internet connection and API key, then try again.',
+      error: API_ERROR,
       data: { Search: [], totalResults: '0' },
     };
   }
@@ -111,37 +88,38 @@ export const getMovieDetails = async (imdbID) => {
       };
     }
 
-    if (!hasValidApiKey()) {
-      return {
-        success: false,
-        error: API_KEY_ERROR,
-      };
-    }
-
-    const { data } = await omdb.get('', {
-      params: {
-        apikey: API_KEY,
-        i: imdbID,
-        plot: 'full',
-      },
-    });
-
-    if (data.Response === 'False') {
-      return {
-        success: false,
-        error: 'Movie details not found',
-      };
-    }
+    const { data } = await apiClient.get(`/movies/${imdbID}`);
 
     return {
       success: true,
-      data: normalizeMovie(data),
+      data: normalizeMovie({
+        imdbID: data.imdb_id,
+        Title: data.title,
+        Year: data.year,
+        Rated: data.rated,
+        Released: data.released,
+        Runtime: data.runtime,
+        Genre: data.genre,
+        Director: data.director,
+        Writer: data.writer,
+        Actors: data.actors,
+        Plot: data.plot,
+        Language: data.language,
+        Country: data.country,
+        Poster: data.poster,
+        imdbRating: data.imdb_rating,
+        imdbVotes: data.imdb_votes,
+        BoxOffice: data.box_office,
+        Type: data.type,
+        totalSeasons: data.total_seasons,
+        Ratings: data.ratings,
+      }),
     };
   } catch (error) {
     console.error('Error fetching movie details:', error);
     return {
       success: false,
-      error: 'Failed to fetch movie details. Please try again.',
+      error: API_ERROR,
     };
   }
 };

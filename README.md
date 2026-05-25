@@ -1,6 +1,6 @@
 # 🎬 CineFind - Movie Discovery Web App
 
-A visually engaging and responsive Movie Discovery application built with React, Vite, and Tailwind CSS. Dynamically fetches movie data from the OMDb API and provides users with an immersive cinematic experience.
+A visually engaging and responsive Movie Discovery application built with React, Vite, Tailwind CSS, and FastAPI. Movie data is fetched through a backend API that integrates with OMDb and supports authenticated favorites.
 
 ## 🌟 Features
 
@@ -34,7 +34,9 @@ A visually engaging and responsive Movie Discovery application built with React,
 - **Vite** - Fast build tool and development server
 - **Tailwind CSS 4** - Utility-first CSS framework
 - **JavaScript (ES6+)** - Modern JavaScript features
-- **Fetch API** - API integration for OMDb
+- **FastAPI** - Backend API and authentication
+- **SQLAlchemy + SQLite** - Database and persistence
+- **JWT** - Token-based authentication
 - **localStorage** - Client-side data persistence
 
 ## 📦 Project Structure
@@ -62,6 +64,16 @@ src/
 ├── main.jsx                 # Entry point
 ├── index.css                # Global Tailwind styles
 └── App.css                  # App-specific styles
+
+backend/
+├── app/
+│   ├── routes/              # Auth, movies, favorites endpoints
+│   ├── models/              # SQLAlchemy models
+│   ├── schemas/             # Pydantic request/response models
+│   ├── database/            # DB engine and session handling
+│   ├── services/            # Auth + OMDb business logic
+│   └── main.py              # FastAPI app entry point
+└── requirements.txt
 ```
 
 ## 🚀 Getting Started
@@ -85,17 +97,31 @@ src/
 3. **Setup Environment Variables**
    - Rename `.env.example` to `.env`
    - Get a free API key from [OMDb API](http://www.omdbapi.com/apikey.aspx)
-   - Add your API key to `.env`:
+   - Add your API key and backend URL to `.env`:
    ```env
    VITE_OMDB_API_KEY=your_api_key_here
    VITE_OMDB_API_URL=https://www.omdbapi.com
+   VITE_BACKEND_API_URL=http://localhost:8000
    ```
 
-4. **Start Development Server**
+4. **Start Backend Server**
    ```bash
+   cd backend
+   pip install -r requirements.txt
+   uvicorn app.main:app --reload --port 8000
+   ```
+
+5. **Start Frontend Development Server**
+   ```bash
+   cd ..
    npm run dev
    ```
-   The app will be available at `http://localhost:5173`
+
+6. **Open App**
+   ```bash
+   Frontend: http://localhost:5173
+   Backend docs: http://localhost:8000/docs
+   ```
 
 ### Build for Production
 ```bash
@@ -134,11 +160,15 @@ npm run preview
 
 ## 🎬 API Integration
 
-The app uses the OMDb API to:
+The app uses FastAPI endpoints (which call OMDb) to:
 - Search for movies by title
 - Fetch detailed movie information
 - Retrieve IMDb ratings and reviews
 - Get cast, director, and production details
+
+Backend also supports:
+- User registration and login with JWT
+- Authenticated favorites storage in SQLite
 
 ## 💾 Local Storage
 
