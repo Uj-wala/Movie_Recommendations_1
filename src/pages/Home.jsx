@@ -275,7 +275,7 @@ export const Home = () => {
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.75, ease: 'easeOut' }}
-          className="grid min-h-[calc(100vh-8rem)] items-center gap-10 py-10 lg:grid-cols-[1.05fr_0.95fr]"
+          className="grid min-h-[calc(100vh-8rem)] items-center gap-10 py-10 md:min-h-[calc(100vh-7rem)] lg:grid-cols-[1.05fr_0.95fr]"
         >
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.26em] text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.18)] backdrop-blur-xl">
@@ -283,7 +283,7 @@ export const Home = () => {
               OMDb powered cinema radar
             </div>
             <div className="max-w-3xl">
-              <h1 className="text-5xl font-black leading-[0.95] tracking-normal text-white sm:text-7xl lg:text-8xl">
+              <h1 className="text-4xl font-black leading-[0.95] tracking-normal text-white sm:text-5xl lg:text-6xl xl:text-7xl">
                 CineVerse
                 <span className="block bg-gradient-to-r from-cyan-200 via-fuchsia-300 to-indigo-300 bg-clip-text text-transparent">
                   Neural Listings
@@ -341,7 +341,7 @@ export const Home = () => {
           </div>
 
           <motion.div
-            className="relative hidden min-h-[34rem] lg:block"
+            className="relative hidden min-h-[24rem] md:block md:min-h-[32rem] lg:min-h-[34rem]"
             style={{ perspective: 1200 }}
             initial={{ opacity: 0, rotateY: -18, y: 40 }}
             animate={{ opacity: 1, rotateY: 0, y: 0 }}
