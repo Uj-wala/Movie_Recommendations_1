@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FiAlertTriangle, FiFilm, FiTrendingUp, FiZap, FiLogIn, FiLogOut, FiUserPlus } from 'react-icons/fi';
 import { useTheme } from '../context/useTheme';
+import { useToast } from '../context/useToast';
 import {
   getHomeMovieSections,
   searchMovies,
@@ -57,6 +58,7 @@ export const Home = () => {
   const [authMode, setAuthMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const { addToast } = useToast();
 
   useEffect(() => {
     let isCurrent = true;
@@ -183,9 +185,12 @@ export const Home = () => {
       setAuthEmail(email);
       setAuthorizationHeader(token);
       await loadFavorites();
+      addToast('Signed in successfully.', 'success');
       setIsAuthModalOpen(false);
     } catch (err) {
-      setAuthError(err.message || 'Authentication failed.');
+      const message = err.message || 'Authentication failed.';
+      setAuthError(message);
+      addToast(message, 'error');
     } finally {
       setAuthLoading(false);
     }
@@ -197,10 +202,12 @@ export const Home = () => {
     setAuthEmail('');
     setFavorites([]);
     setError('');
+    addToast('Logged out successfully.', 'info');
   };
 
   const handleFavoriteToggle = useCallback(async (imdbID) => {
     if (!authToken) {
+      addToast('Please login to save favorites.', 'warning');
       handleAuthOpen('login');
       return;
     }
@@ -217,8 +224,11 @@ export const Home = () => {
       const result = await removeFavorite(imdbID);
       if (result.success) {
         setFavorites((prev) => prev.filter((fav) => fav.imdbID !== imdbID));
+        addToast('Removed from your watchlist.', 'info');
       } else {
-        setError(result.error || 'Unable to remove favorite');
+        const message = result.error || 'Unable to remove favorite';
+        setError(message);
+        addToast(message, 'error');
       }
       return;
     }
@@ -226,8 +236,11 @@ export const Home = () => {
     const result = await addFavorite(movieToToggle);
     if (result.success) {
       setFavorites((prev) => [normalizeFavorite(result.data), ...prev]);
+      addToast('Added to your watchlist.', 'success');
     } else {
-      setError(result.error || 'Unable to save favorite');
+      const message = result.error || 'Unable to save favorite';
+      setError(message);
+      addToast(message, 'error');
     }
   }, [authToken, favorites, movies, featuredMovies, selectedMovie]);
 
