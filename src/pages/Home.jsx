@@ -1,8 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiAlertTriangle, FiFilm, FiTrendingUp, FiZap } from 'react-icons/fi';
+import { FiAlertTriangle, FiFilm, FiTrendingUp, FiZap, FiLogIn, FiLogOut, FiUserPlus } from 'react-icons/fi';
 import { useTheme } from '../context/useTheme';
-import { getHomeMovieSections, searchMovies } from '../services/api';
+import {
+  getHomeMovieSections,
+  searchMovies,
+  loginUser,
+  registerUser,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  setAuthorizationHeader,
+  clearAuth,
+} from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { CinematicBackground } from '../components/CinematicBackground';
 import { SearchBar } from '../components/SearchBar';
@@ -13,6 +23,16 @@ import { Pagination } from '../components/Pagination';
 import { Navbar } from '../components/Navbar';
 import { Favorites } from '../components/Favorites';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { AuthModal } from '../components/AuthModal';
+
+const normalizeFavorite = (favorite) => ({
+  ...favorite,
+  imdbID: favorite.imdb_id,
+  Title: favorite.title,
+  Year: favorite.year,
+  Poster: favorite.poster_url,
+  Type: 'movie',
+});
 
 export const Home = () => {
   const { isDark } = useTheme();
@@ -28,9 +48,15 @@ export const Home = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useLocalStorage('favorites', []);
+  const [favorites, setFavorites] = useState([]);
   const [recentSearches, setRecentSearches] = useLocalStorage('recentSearches', []);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const [authToken, setAuthToken] = useLocalStorage('authToken', '');
+  const [authEmail, setAuthEmail] = useLocalStorage('authEmail', '');
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   useEffect(() => {
     let isCurrent = true;
@@ -51,6 +77,28 @@ export const Home = () => {
       isCurrent = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (authToken) {
+      setAuthorizationHeader(authToken);
+      loadFavorites();
+    }
+  }, [authToken]);
+
+  const loadFavorites = useCallback(async () => {
+    if (!authToken) {
+      setFavorites([]);
+      return;
+    }
+
+    setError('');
+    const result = await getFavorites();
+    if (result.success) {
+      setFavorites(result.data.map(normalizeFavorite));
+    } else {
+      setError(result.error || 'Unable to load watchlist');
+    }
+  }, [authToken]);
 
   const handleSearch = useCallback(async (term) => {
     if (!term.trim()) {
@@ -107,27 +155,83 @@ export const Home = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [searchTerm, totalPages]);
 
-  const handleFavoriteToggle = useCallback((imdbID) => {
+  const handleAuthOpen = (mode) => {
+    setAuthMode(mode);
+    setAuthError('');
+    setIsAuthModalOpen(true);
+  };
+
+  const handleAuthSubmit = async (email, password) => {
+    setAuthLoading(true);
+    setAuthError('');
+
+    try {
+      if (authMode === 'register') {
+        const registrationResult = await registerUser(email, password);
+        if (!registrationResult.success) {
+          throw new Error(registrationResult.error);
+        }
+      }
+
+      const loginResult = await loginUser(email, password);
+      if (!loginResult.success) {
+        throw new Error(loginResult.error);
+      }
+
+      const token = loginResult.data.access_token;
+      setAuthToken(token);
+      setAuthEmail(email);
+      setAuthorizationHeader(token);
+      await loadFavorites();
+      setIsAuthModalOpen(false);
+    } catch (err) {
+      setAuthError(err.message || 'Authentication failed.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    clearAuth();
+    setAuthToken('');
+    setAuthEmail('');
+    setFavorites([]);
+    setError('');
+  };
+
+  const handleFavoriteToggle = useCallback(async (imdbID) => {
+    if (!authToken) {
+      handleAuthOpen('login');
+      return;
+    }
+
+    const existing = favorites.find((f) => f.imdbID === imdbID);
     const movieToToggle = movies.find((m) => m.imdbID === imdbID) ||
-                          featuredMovies.find((m) => m.imdbID === imdbID) ||
-                          selectedMovie ||
-                          favorites.find((f) => f.imdbID === imdbID);
+      featuredMovies.find((m) => m.imdbID === imdbID) ||
+      selectedMovie ||
+      favorites.find((f) => f.imdbID === imdbID);
 
     if (!movieToToggle) return;
 
-    setFavorites((prev) => {
-      const isFavorite = prev.some((m) => m.imdbID === imdbID);
-      if (isFavorite) {
-        return prev.filter((m) => m.imdbID !== imdbID);
+    if (existing) {
+      const result = await removeFavorite(imdbID);
+      if (result.success) {
+        setFavorites((prev) => prev.filter((fav) => fav.imdbID !== imdbID));
       } else {
-        return [...prev, movieToToggle];
+        setError(result.error || 'Unable to remove favorite');
       }
-    });
-  }, [movies, featuredMovies, selectedMovie, favorites, setFavorites]);
+      return;
+    }
 
-  const isFavorite = (imdbID) => {
-    return favorites.some((m) => m.imdbID === imdbID);
-  };
+    const result = await addFavorite(movieToToggle);
+    if (result.success) {
+      setFavorites((prev) => [normalizeFavorite(result.data), ...prev]);
+    } else {
+      setError(result.error || 'Unable to save favorite');
+    }
+  }, [authToken, favorites, movies, featuredMovies, selectedMovie]);
+
+  const isFavorite = (imdbID) => favorites.some((m) => m.imdbID === imdbID);
 
   const handleMovieClick = (movie) => {
     setSelectedMovie(movie);
@@ -142,6 +246,7 @@ export const Home = () => {
   const visibleMovies = movies.length ? movies : featuredMovies;
   const isDiscoveryMode = movies.length === 0 && !searchTerm;
   const heroMovie = featuredMovies[0];
+  const isAuthenticated = Boolean(authToken);
 
   return (
     <div className={`min-h-screen overflow-x-hidden transition-colors duration-500 ${isDark ? 'text-white' : 'text-slate-950'}`}>
@@ -172,8 +277,47 @@ export const Home = () => {
                 </span>
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-                Search the OMDb universe, build a watchlist, inspect full film telemetry, and glide through a cinematic interface tuned for neon nights.
+                Search the OMDb universe, build a live watchlist, and save your watchlist into SQLite-backed storage through the FastAPI backend.
               </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                {isAuthenticated ? (
+                  <p>
+                    Signed in as <span className="font-black text-white">{authEmail}</span>
+                  </p>
+                ) : (
+                  <p>Please login or register to save favorites to the database.</p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {!isAuthenticated ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleAuthOpen('login')}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15"
+                    >
+                      <FiLogIn /> Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAuthOpen('register')}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-4 py-3 text-sm font-black text-fuchsia-100 transition hover:bg-fuchsia-300/15"
+                    >
+                      <FiUserPlus /> Register
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15"
+                  >
+                    <FiLogOut /> Logout
+                  </button>
+                )}
+              </div>
             </div>
             <SearchBar
               onSearch={handleSearch}
@@ -324,6 +468,15 @@ export const Home = () => {
         onFavoriteToggle={handleFavoriteToggle}
         isOpen={isFavoritesOpen}
         onClose={() => setIsFavoritesOpen(false)}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        mode={authMode}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSubmit={handleAuthSubmit}
+        isLoading={authLoading}
+        error={authError}
       />
     </div>
   );

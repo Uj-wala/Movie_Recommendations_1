@@ -4,11 +4,102 @@ import { fakeMovies, getFakeMovieDetails, getFakeMovies } from '../utils/fakeMov
 const API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
 const API_ERROR =
   'Backend API is unavailable. Ensure FastAPI server is running and properly configured.';
+const AUTH_TOKEN_KEY = 'cineverse_auth_token';
+const USER_EMAIL_KEY = 'cineverse_user_email';
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 20000,
 });
+
+export const setAuthorizationHeader = (token) => {
+  if (token) {
+    apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete apiClient.defaults.headers.common.Authorization;
+  }
+};
+
+export const storeAuth = (token, email) => {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  localStorage.setItem(USER_EMAIL_KEY, email);
+  setAuthorizationHeader(token);
+};
+
+export const clearAuth = () => {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(USER_EMAIL_KEY);
+  setAuthorizationHeader(null);
+};
+
+export const getStoredAuth = () => ({
+  token: localStorage.getItem(AUTH_TOKEN_KEY) || '',
+  email: localStorage.getItem(USER_EMAIL_KEY) || '',
+});
+
+const formatError = (error) => {
+  if (error?.code === 'ECONNABORTED') {
+    return 'Request timed out while contacting the backend. Please confirm the backend is running and try again.';
+  }
+  if (error?.response?.data?.detail) {
+    return error.response.data.detail;
+  }
+  if (error?.message) {
+    return error.message;
+  }
+  return API_ERROR;
+};
+
+export const registerUser = async (email, password) => {
+  try {
+    const { data } = await apiClient.post('/register', { email, password });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const loginUser = async (email, password) => {
+  try {
+    const { data } = await apiClient.post('/login', { email, password });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const getFavorites = async () => {
+  try {
+    const { data } = await apiClient.get('/favorites');
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const addFavorite = async (movie) => {
+  try {
+    const payload = {
+      imdb_id: movie.imdbID,
+      title: movie.Title,
+      year: movie.Year,
+      poster_url: movie.Poster,
+    };
+    const { data } = await apiClient.post('/favorites', payload);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const removeFavorite = async (imdbID) => {
+  try {
+    await apiClient.delete(`/favorites/${imdbID}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
 
 /**
  * Fetch movies from backend API

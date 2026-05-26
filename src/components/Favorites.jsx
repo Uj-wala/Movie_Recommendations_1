@@ -30,7 +30,7 @@ export const Favorites = ({
           >
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-fuchsia-200">Local storage</p>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-fuchsia-200">Live watchlist</p>
                 <h2 className="mt-1 text-2xl font-black text-white">Watchlist</h2>
               </div>
               <button
