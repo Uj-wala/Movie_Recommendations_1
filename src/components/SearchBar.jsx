@@ -51,7 +51,7 @@ export const SearchBar = ({ onSearch, isLoading, recentSearches = [], onRecentSe
       </motion.div>
 
       {recentSearches.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="mt-5 flex flex-wrap items-center gap-2.5">
           {recentSearches.map((term) => (
             <button
               type="button"

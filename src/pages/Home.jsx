@@ -50,6 +50,7 @@ export const Home = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [favorites, setFavorites] = useState([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useLocalStorage('recentSearches', []);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [authToken, setAuthToken] = useLocalStorage('authToken', '');
@@ -59,6 +60,17 @@ export const Home = () => {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const { addToast } = useToast();
+
+  const validateAuthCredentials = (emailValue, passwordValue) => {
+    const email = emailValue.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email) return 'Email is required.';
+    if (!emailRegex.test(email)) return 'Enter a valid email address.';
+    if (!passwordValue) return 'Password is required.';
+    if (passwordValue.length < 8) return 'Password must be at least 8 characters.';
+    return '';
+  };
 
   useEffect(() => {
     let isCurrent = true;
@@ -93,6 +105,7 @@ export const Home = () => {
       return;
     }
 
+    setFavoritesLoading(true);
     setError('');
     const result = await getFavorites();
     if (result.success) {
@@ -100,6 +113,7 @@ export const Home = () => {
     } else {
       setError(result.error || 'Unable to load watchlist');
     }
+    setFavoritesLoading(false);
   }, [authToken]);
 
   const handleSearch = useCallback(async (term) => {
@@ -167,17 +181,31 @@ export const Home = () => {
     setAuthLoading(true);
     setAuthError('');
 
+    const validationMessage = validateAuthCredentials(email, password);
+    if (validationMessage) {
+      setAuthError(validationMessage);
+      addToast(validationMessage, 'error');
+      setAuthLoading(false);
+      return;
+    }
+
     try {
       if (authMode === 'register') {
         const registrationResult = await registerUser(email, password);
         if (!registrationResult.success) {
-          throw new Error(registrationResult.error);
+          const message = registrationResult.error || 'Registration failed.';
+          setAuthError(message);
+          addToast(message, 'error');
+          return;
         }
       }
 
       const loginResult = await loginUser(email, password);
       if (!loginResult.success) {
-        throw new Error(loginResult.error);
+        const message = loginResult.error || 'Login failed.';
+        setAuthError(message);
+        addToast(message, 'error');
+        return;
       }
 
       const token = loginResult.data.access_token;
@@ -270,12 +298,12 @@ export const Home = () => {
         onFavoritesClick={() => setIsFavoritesOpen(true)}
       />
 
-      <main className="relative mx-auto max-w-7xl px-4 pb-16 pt-6 sm:px-6 lg:px-8">
+      <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
         <motion.section
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.75, ease: 'easeOut' }}
-          className="grid min-h-[calc(100vh-8rem)] items-center gap-10 py-10 md:min-h-[calc(100vh-7rem)] lg:grid-cols-[1.05fr_0.95fr]"
+          className="grid min-h-[calc(100vh-8rem)] items-center gap-12 py-12 md:min-h-[calc(100vh-7rem)] lg:grid-cols-[1.05fr_0.95fr]"
         >
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.26em] text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.18)] backdrop-blur-xl">
@@ -293,8 +321,8 @@ export const Home = () => {
                 Search the OMDb universe, build a live watchlist, and save your watchlist into SQLite-backed storage through the FastAPI backend.
               </p>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
                 {isAuthenticated ? (
                   <p>
                     Signed in as <span className="font-black text-white">{authEmail}</span>
@@ -303,20 +331,20 @@ export const Home = () => {
                   <p>Please login or register to save favorites to the database.</p>
                 )}
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-4">
                 {!isAuthenticated ? (
                   <>
                     <button
                       type="button"
                       onClick={() => handleAuthOpen('login')}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15"
                     >
                       <FiLogIn /> Login
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAuthOpen('register')}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-4 py-3 text-sm font-black text-fuchsia-100 transition hover:bg-fuchsia-300/15"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-5 py-3 text-sm font-black text-fuchsia-100 transition hover:bg-fuchsia-300/15"
                     >
                       <FiUserPlus /> Register
                     </button>
@@ -325,7 +353,7 @@ export const Home = () => {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white/15"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/15"
                   >
                     <FiLogOut /> Logout
                   </button>
@@ -385,7 +413,7 @@ export const Home = () => {
                 initial={{ opacity: 0, y: -12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
-                className="mb-8 flex items-start gap-3 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-5 text-rose-100 shadow-[0_0_32px_rgba(244,63,94,0.12)] backdrop-blur-xl"
+                className="mb-10 flex items-start gap-3 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-5 text-rose-100 shadow-[0_0_32px_rgba(244,63,94,0.12)] backdrop-blur-xl"
               >
                 <FiAlertTriangle className="mt-1 shrink-0" />
                 <span>{error}</span>
@@ -427,7 +455,7 @@ export const Home = () => {
           )}
 
           {!isLoading && !featuredLoading && isDiscoveryMode && (
-            <div className="space-y-14">
+            <div className="space-y-16">
               {trendingMovies.length > 0 && (
                 <MovieSection
                   title="Trending movies"
@@ -453,12 +481,14 @@ export const Home = () => {
           )}
 
           {!isLoading && movies.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              isLoading={isLoading}
-            />
+            <div className="mt-12">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                isLoading={isLoading}
+              />
+            </div>
           )}
         </section>
       </main>
@@ -481,6 +511,7 @@ export const Home = () => {
         onFavoriteToggle={handleFavoriteToggle}
         isOpen={isFavoritesOpen}
         onClose={() => setIsFavoritesOpen(false)}
+        isLoading={favoritesLoading}
       />
 
       <AuthModal

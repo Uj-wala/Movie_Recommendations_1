@@ -5,11 +5,30 @@ import { FiX } from 'react-icons/fi';
 export const AuthModal = ({ isOpen, mode, onClose, onSubmit, isLoading, error }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validateEmail = (value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return 'Email is required.';
+    if (!emailPattern.test(trimmed)) return 'Enter a valid email address.';
+    return '';
+  };
+
+  const validatePassword = (value) => {
+    if (!value) return 'Password is required.';
+    if (value.length < 8) return 'Password must be at least 8 characters.';
+    return '';
+  };
 
   useEffect(() => {
     if (isOpen) {
       setEmail('');
       setPassword('');
+      setEmailError('');
+      setPasswordError('');
     }
   }, [isOpen, mode]);
 
@@ -51,7 +70,18 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, isLoading, error })
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            onSubmit(email.trim(), password);
+            const trimmedEmail = email.trim();
+            const emailValidation = validateEmail(trimmedEmail);
+            const passwordValidation = validatePassword(password);
+
+            setEmailError(emailValidation);
+            setPasswordError(passwordValidation);
+
+            if (emailValidation || passwordValidation) {
+              return;
+            }
+
+            onSubmit(trimmedEmail, password);
           }}
           className="space-y-4"
         >
@@ -60,10 +90,14 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, isLoading, error })
             <input
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setEmailError(validateEmail(event.target.value));
+              }}
               required
               className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400"
             />
+            {emailError && <p className="mt-2 text-xs text-rose-300">{emailError}</p>}
           </label>
 
           <label className="block text-sm font-semibold text-slate-300">
@@ -71,11 +105,15 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, isLoading, error })
             <input
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setPasswordError(validatePassword(event.target.value));
+              }}
               minLength={8}
               required
               className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-cyan-400"
             />
+            {passwordError && <p className="mt-2 text-xs text-rose-300">{passwordError}</p>}
           </label>
 
           {error && (
@@ -86,7 +124,7 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, isLoading, error })
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || !!emailError || !!passwordError || !email || !password}
             className="w-full rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLoading ? 'Working…' : submitLabel}

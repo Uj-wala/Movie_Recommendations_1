@@ -9,6 +9,7 @@ export const Favorites = ({
   onFavoriteToggle,
   isOpen,
   onClose,
+  isLoading = false,
 }) => {
   return (
     <AnimatePresence>
@@ -22,7 +23,7 @@ export const Favorites = ({
             onClick={onClose}
           />
           <motion.aside
-            className="fixed bottom-0 right-0 top-16 z-40 w-full overflow-y-auto border-l border-white/10 bg-slate-950/88 p-5 shadow-[0_0_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:w-[27rem]"
+            className="fixed bottom-0 right-0 top-16 z-40 w-full overflow-y-auto border-l border-white/10 bg-slate-950/88 p-6 shadow-[0_0_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl sm:w-[27rem]"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -43,13 +44,34 @@ export const Favorites = ({
               </button>
             </div>
 
-            {favorites.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(6)].map((_, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="rounded-2xl border border-white/10 bg-white/[0.07] p-3"
+                  >
+                    <div className="flex gap-3">
+                      <div className="h-20 w-14 animate-shimmer rounded-lg bg-white/10" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-3/4 animate-shimmer rounded-full bg-white/10" />
+                        <div className="h-3 w-1/2 animate-shimmer rounded-full bg-white/10" />
+                      </div>
+                      <div className="h-10 w-10 animate-shimmer shrink-0 rounded-full bg-white/10" />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : favorites.length === 0 ? (
               <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-slate-300">
                 <FiHeart className="mx-auto mb-4 h-10 w-10 text-fuchsia-200" />
                 <p>Your saved movie queue is empty.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4\">
                 {favorites.map((movie) => (
                   <motion.article
                     key={movie.imdbID}

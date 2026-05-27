@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiClock, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
 import { getMovieDetails } from '../services/api';
+import { SkeletonMovieModal } from './SkeletonLoader';
 
 const placeholderImage = 'https://placehold.co/600x900/07111f/67e8f9?text=No+Poster';
 
@@ -69,11 +70,7 @@ export const MovieModal = ({ movie, isOpen, onClose, isFavorite, onFavoriteToggl
 
         <div className="overflow-y-auto p-6 sm:p-8">
           {isLoading ? (
-            <div className="space-y-5 pt-16">
-              <div className="h-8 w-3/4 animate-shimmer rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.08),rgba(103,232,249,0.28),rgba(255,255,255,0.08))] bg-[length:200%_100%]" />
-              <div className="h-4 w-full animate-shimmer rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.08),rgba(103,232,249,0.28),rgba(255,255,255,0.08))] bg-[length:200%_100%]" />
-              <div className="h-4 w-5/6 animate-shimmer rounded-full bg-[linear-gradient(90deg,rgba(255,255,255,0.08),rgba(103,232,249,0.28),rgba(255,255,255,0.08))] bg-[length:200%_100%]" />
-            </div>
+            <SkeletonMovieModal />
           ) : (
             <div className="space-y-7">
               <div>

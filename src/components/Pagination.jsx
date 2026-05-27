@@ -17,7 +17,7 @@ export const Pagination = ({ currentPage, totalPages, onPageChange, isLoading })
   }
 
   return (
-    <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+    <div className="mt-12 flex flex-wrap items-center justify-center gap-3\">
       <PageButton
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1 || isLoading}

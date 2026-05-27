@@ -37,16 +37,44 @@ export const getStoredAuth = () => ({
   email: localStorage.getItem(USER_EMAIL_KEY) || '',
 });
 
+const getResponseError = (response) => {
+  const data = response?.data;
+  if (!data) return null;
+
+  if (typeof data.detail === 'string') return data.detail;
+  if (Array.isArray(data.detail)) return data.detail.map((item) => item?.msg || item).join(' ');
+  if (typeof data.message === 'string') return data.message;
+  if (Array.isArray(data.errors)) return data.errors.map((err) => err?.msg || JSON.stringify(err)).join(' ');
+  if (typeof data === 'string') return data;
+  return null;
+};
+
 const formatError = (error) => {
   if (error?.code === 'ECONNABORTED') {
     return 'Request timed out while contacting the backend. Please confirm the backend is running and try again.';
   }
-  if (error?.response?.data?.detail) {
-    return error.response.data.detail;
+
+  const responseError = getResponseError(error?.response);
+  if (responseError) {
+    return responseError;
   }
+
+  if (error?.response?.status === 401) {
+    return 'Unauthorized request. Please login again.';
+  }
+
+  if (error?.response?.status === 403) {
+    return 'Forbidden request. Please check your permissions.';
+  }
+
+  if (error?.response?.statusText) {
+    return error.response.statusText;
+  }
+
   if (error?.message) {
     return error.message;
   }
+
   return API_ERROR;
 };
 
@@ -157,7 +185,7 @@ export const searchMovies = async (searchTerm, page = 1) => {
 
     return {
       success: false,
-      error: API_ERROR,
+      error: formatError(error),
       data: { Search: [], totalResults: '0' },
     };
   }
@@ -210,7 +238,7 @@ export const getMovieDetails = async (imdbID) => {
     console.error('Error fetching movie details:', error);
     return {
       success: false,
-      error: API_ERROR,
+      error: formatError(error),
     };
   }
 };
