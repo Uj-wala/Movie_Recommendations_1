@@ -4,7 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database.session import Base, engine
 from app.routes.auth import router as auth_router
 from app.routes.favorites import router as favorites_router
+from app.routes.history import router as history_router
 from app.routes.movies import router as movies_router
+from app.routes.reviews import router as reviews_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -30,6 +32,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(movies_router)
 app.include_router(favorites_router)
+app.include_router(history_router)
+app.include_router(reviews_router)
 
 
 @app.get("/")

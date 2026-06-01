@@ -20,6 +20,7 @@ SECRET_KEY = os.getenv("BACKEND_SECRET_KEY", "change-me-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 auth_scheme = HTTPBearer()
+optional_auth_scheme = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
@@ -60,4 +61,25 @@ def get_current_user(
     if not user:
         raise unauthorized
 
+    return user
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(optional_auth_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not credentials:
+        return None
+
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        parsed_user_id = int(user_id)
+    except (JWTError, ValueError):
+        return None
+
+    user = db.query(User).filter(User.id == parsed_user_id).first()
     return user

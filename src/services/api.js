@@ -4,8 +4,8 @@ import { fakeMovies, getFakeMovieDetails, getFakeMovies } from '../utils/fakeMov
 const API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
 const API_ERROR =
   'Backend API is unavailable. Ensure FastAPI server is running and properly configured.';
-const AUTH_TOKEN_KEY = 'cineverse_auth_token';
-const USER_EMAIL_KEY = 'cineverse_user_email';
+const AUTH_TOKEN_KEY = 'authToken';
+const USER_EMAIL_KEY = 'authEmail';
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -19,6 +19,28 @@ export const setAuthorizationHeader = (token) => {
     delete apiClient.defaults.headers.common.Authorization;
   }
 };
+
+// Clear frontend auth if backend replies with 401 (invalid or expired token)
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      try {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(USER_EMAIL_KEY);
+      } catch (e) {
+        // ignore
+      }
+      delete apiClient.defaults.headers.common.Authorization;
+      try {
+        window.dispatchEvent(new Event('cineverse:auth_cleared'));
+      } catch (e) {
+        // ignore in non-browser environments
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const storeAuth = (token, email) => {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
@@ -129,6 +151,51 @@ export const removeFavorite = async (imdbID) => {
   }
 };
 
+export const getMovieReviews = async (imdbID, page = 1, pageSize = 5) => {
+  try {
+    const { data } = await apiClient.get('/reviews', {
+      params: { imdb_id: imdbID, page, page_size: pageSize },
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const addReview = async (imdbID, review, rating) => {
+  try {
+    const { data } = await apiClient.post('/reviews', {
+      imdb_id: imdbID,
+      review,
+      rating,
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const updateReview = async (imdbID, review, rating) => {
+  try {
+    const { data } = await apiClient.patch(`/reviews/${imdbID}`, {
+      review,
+      rating,
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const deleteReview = async (imdbID) => {
+  try {
+    await apiClient.delete(`/reviews/${imdbID}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
 /**
  * Fetch movies from backend API
  * @param {string} searchTerm - Movie title to search for
@@ -227,6 +294,7 @@ export const getMovieDetails = async (imdbID) => {
         Country: data.country,
         Poster: data.poster,
         imdbRating: data.imdb_rating,
+        averageRating: data.average_rating,
         imdbVotes: data.imdb_votes,
         BoxOffice: data.box_office,
         Type: data.type,

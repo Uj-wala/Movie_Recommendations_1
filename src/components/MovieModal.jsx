@@ -1,13 +1,34 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiClock, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
-import { getMovieDetails } from '../services/api';
+import { useToast } from '../context/useToast';
+import { getMovieDetails, getMovieReviews, addReview, updateReview, deleteReview } from '../services/api';
 import { SkeletonMovieModal } from './SkeletonLoader';
 
 const placeholderImage = 'https://placehold.co/600x900/07111f/67e8f9?text=No+Poster';
 
-export const MovieModal = ({ movie, isOpen, onClose, isFavorite, onFavoriteToggle }) => {
+export const MovieModal = ({
+  movie,
+  isOpen,
+  onClose,
+  isFavorite,
+  onFavoriteToggle,
+  isAuthenticated,
+  authEmail,
+  onRequireAuth,
+}) => {
+  const { addToast } = useToast();
   const [movieDetails, setMovieDetails] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsPageSize] = useState(5);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const [reviewsError, setReviewsError] = useState('');
+  const [reviewText, setReviewText] = useState('');
+  const [reviewRating, setReviewRating] = useState(4);
+  const [isSavingReview, setIsSavingReview] = useState(false);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !movie) return undefined;
@@ -23,6 +44,121 @@ export const MovieModal = ({ movie, isOpen, onClose, isFavorite, onFavoriteToggl
       isCurrent = false;
     };
   }, [isOpen, movie]);
+
+  useEffect(() => {
+    if (!isOpen || !movie) return undefined;
+
+    let isCurrent = true;
+    const loadReviews = async (page = reviewsPage) => {
+      setIsLoadingReviews(true);
+      setReviewsError('');
+      const result = await getMovieReviews(movie.imdbID, page, reviewsPageSize);
+      if (!isCurrent) return;
+      if (!result.success) {
+        setReviewsError(result.error || 'Unable to load reviews');
+        setReviews([]);
+        setReviewsTotal(0);
+      } else {
+        setReviews(result.data.items || []);
+        setReviewsTotal(result.data.total || 0);
+        setReviewsPage(result.data.page || page);
+      }
+      setIsLoadingReviews(false);
+    };
+
+    loadReviews(reviewsPage);
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isOpen, movie]);
+
+  const userReview = reviews.find((review) => review.user_email === authEmail);
+
+  useEffect(() => {
+    if (userReview) {
+      setReviewText(userReview.review);
+      setReviewRating(userReview.rating ?? 4);
+    } else {
+      setReviewText('');
+      setReviewRating(4);
+    }
+  }, [userReview]);
+
+  const handleSaveReview = async () => {
+    if (!isAuthenticated) {
+      onRequireAuth?.();
+      return;
+    }
+
+    if (!reviewText.trim()) {
+      addToast('Please enter your review text.', 'error');
+      return;
+    }
+
+    setIsSavingReview(true);
+    const payload = { review: reviewText.trim(), rating: reviewRating || null };
+
+    const result = userReview
+      ? await updateReview(movie.imdbID, payload.review, payload.rating)
+      : await addReview(movie.imdbID, payload.review, payload.rating);
+
+    if (!result.success) {
+      addToast(result.error || 'Unable to save review.', 'error');
+      setIsSavingReview(false);
+      return;
+    }
+
+    const updatedReview = result.data;
+    setReviews((currentReviews) => {
+      const existingIndex = currentReviews.findIndex((item) => item.id === updatedReview.id);
+      if (existingIndex !== -1) {
+        const nextReviews = [...currentReviews];
+        nextReviews[existingIndex] = updatedReview;
+        return nextReviews;
+      }
+      return [updatedReview, ...currentReviews];
+    });
+    addToast(userReview ? 'Review updated successfully.' : 'Review added successfully.', 'success');
+    setIsSavingReview(false);
+    // reload first page of reviews
+    setReviewsPage(1);
+    const reload = await getMovieReviews(movie.imdbID, 1, reviewsPageSize);
+    if (reload.success) {
+      setReviews(reload.data.items || []);
+      setReviewsTotal(reload.data.total || 0);
+    }
+    // refresh movie details to pick up new average rating
+    const md = await getMovieDetails(movie.imdbID);
+    if (md.success) setMovieDetails(md.data);
+  };
+
+  const handleDeleteReview = async () => {
+    if (!userReview) return;
+    setIsDeletingReview(true);
+    const result = await deleteReview(movie.imdbID);
+
+    if (!result.success) {
+      addToast(result.error || 'Unable to delete review.', 'error');
+      setIsDeletingReview(false);
+      return;
+    }
+
+    setReviews((currentReviews) => currentReviews.filter((item) => item.id !== userReview.id));
+    setReviewText('');
+    setReviewRating(8);
+    addToast('Review deleted successfully.', 'info');
+    setIsDeletingReview(false);
+    // reload current page
+    const reload = await getMovieReviews(movie.imdbID, reviewsPage, reviewsPageSize);
+    if (reload.success) {
+      setReviews(reload.data.items || []);
+      setReviewsTotal(reload.data.total || 0);
+    }
+    // refresh movie details to pick up new average rating
+    const md = await getMovieDetails(movie.imdbID);
+    if (md.success) setMovieDetails(md.data);
+  };
 
   if (!isOpen) return null;
 
@@ -140,6 +276,162 @@ export const MovieModal = ({ movie, isOpen, onClose, isFavorite, onFavoriteToggl
                   </div>
                 </div>
               )}
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                <div className="mb-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">
+                      Community Reviews
+                    </p>
+                    <p className="text-xs text-slate-400">Share your review and rating for this movie.</p>
+                  </div>
+                  <span className="rounded-full bg-slate-900/70 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-slate-300">
+                    {reviews.length} review{reviews.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                {isAuthenticated ? (
+                  <div className="space-y-4">
+                    <textarea
+                      className="w-full rounded-3xl border border-white/10 bg-slate-950/70 p-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
+                      rows={4}
+                      value={reviewText}
+                      onChange={(event) => setReviewText(event.target.value)}
+                      placeholder="Write your review here..."
+                    />
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2 text-sm text-slate-300">
+                        <label htmlFor="review-rating" className="font-black uppercase tracking-[0.18em] text-slate-400">
+                          Rating
+                        </label>
+                        <select
+                          id="review-rating"
+                          className="rounded-3xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:outline-none"
+                          value={reviewRating}
+                          onChange={(event) => setReviewRating(Number(event.target.value))}
+                        >
+                          {Array.from({ length: 5 }, (_, index) => index + 1).map((value) => (
+                            <option key={value} value={value}>
+                              {value}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          type="button"
+                          onClick={handleSaveReview}
+                          disabled={isSavingReview}
+                          className="inline-flex items-center justify-center rounded-3xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {userReview ? 'Update Review' : 'Submit Review'}
+                        </button>
+                        {userReview && (
+                          <button
+                            type="button"
+                            onClick={handleDeleteReview}
+                            disabled={isDeletingReview}
+                            className="inline-flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 px-5 py-3 text-sm font-black text-white transition hover:border-rose-300 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            Delete Review
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5 text-slate-300">
+                    <p className="mb-4 text-sm">Login to add a review and rating for this movie.</p>
+                    <button
+                      type="button"
+                      onClick={() => onRequireAuth?.()}
+                      className="inline-flex items-center justify-center rounded-3xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+                    >
+                      Login to leave review
+                    </button>
+                  </div>
+                )}
+
+                <div className="space-y-4 pt-4">
+                  {isLoadingReviews ? (
+                    <p className="text-sm text-slate-400">Loading reviews...</p>
+                  ) : reviewsError ? (
+                    <p className="text-sm text-rose-400">{reviewsError}</p>
+                  ) : reviews.length === 0 ? (
+                    <p className="text-sm text-slate-400">No reviews yet. Be the first to add one.</p>
+                  ) : (
+                    <>
+                      {reviews.map((review) => (
+                        <div
+                          key={review.id}
+                          className="rounded-3xl border border-white/10 bg-slate-950/70 p-4"
+                        >
+                          <div className="mb-3 flex items-center justify-between gap-3 text-sm text-slate-300">
+                            <span className="font-black text-white">{review.user_email}</span>
+                            <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-400">
+                              {review.rating ?? 'No rating'}
+                            </span>
+                          </div>
+                          <p className="text-sm leading-6 text-slate-200">{review.review}</p>
+                        </div>
+                      ))}
+
+                      <div className="mt-3 flex items-center justify-between">
+                        <div className="text-sm text-slate-400">
+                          Showing page {reviewsPage} — {reviewsTotal} review{reviewsTotal === 1 ? '' : 's'} total
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const prev = Math.max(1, reviewsPage - 1);
+                              setReviewsPage(prev);
+                              const r = await getMovieReviews(movie.imdbID, prev, reviewsPageSize);
+                              if (r.success) {
+                                setReviews(r.data.items || []);
+                                setReviewsTotal(r.data.total || 0);
+                              } else {
+                                setReviewsError(r.error || 'Unable to load reviews');
+                              }
+                            }}
+                            disabled={reviewsPage === 1}
+                            className="rounded-2xl border border-white/10 px-3 py-2 text-sm disabled:opacity-50"
+                          >
+                            Prev
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const maxPage = Math.max(1, Math.ceil(reviewsTotal / reviewsPageSize));
+                              const next = Math.min(maxPage, reviewsPage + 1);
+                              setReviewsPage(next);
+                              const r = await getMovieReviews(movie.imdbID, next, reviewsPageSize);
+                              if (r.success) {
+                                setReviews(r.data.items || []);
+                                setReviewsTotal(r.data.total || 0);
+                              } else {
+                                setReviewsError(r.error || 'Unable to load reviews');
+                              }
+                            }}
+                            disabled={reviewsPage >= Math.ceil(reviewsTotal / reviewsPageSize)}
+                            className="rounded-2xl border border-white/10 px-3 py-2 text-sm disabled:opacity-50"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  {details.averageRating != null && (
+                    <div className="mt-3">
+                      <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-300/20 px-3 py-1.5 text-amber-200 shadow-[0_0_22px_rgba(251,191,36,0.25)]">
+                        <FiStar className="fill-current text-amber-300" />
+                        {Number.parseFloat(details.averageRating).toFixed(1)}/5
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

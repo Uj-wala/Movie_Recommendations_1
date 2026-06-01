@@ -99,6 +99,18 @@ export const Home = () => {
     }
   }, [authToken]);
 
+  useEffect(() => {
+    const handler = () => {
+      setAuthToken('');
+      setAuthEmail('');
+      setFavorites([]);
+      setError('');
+      addToast('Session expired. Please sign in again.', 'warning');
+    };
+    window.addEventListener('cineverse:auth_cleared', handler);
+    return () => window.removeEventListener('cineverse:auth_cleared', handler);
+  }, [addToast, setAuthEmail, setAuthToken]);
+
   const loadFavorites = useCallback(async () => {
     if (!authToken) {
       setFavorites([]);
@@ -501,6 +513,9 @@ export const Home = () => {
             onClose={handleModalClose}
             isFavorite={isFavorite(selectedMovie.imdbID)}
             onFavoriteToggle={handleFavoriteToggle}
+            isAuthenticated={isAuthenticated}
+            authEmail={authEmail}
+            onRequireAuth={() => handleAuthOpen('login')}
           />
         )}
       </AnimatePresence>
