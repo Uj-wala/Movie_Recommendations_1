@@ -349,11 +349,24 @@ const normalizeMovies = (movies) =>
   movies.map((movie) => ({
     ...movie,
     imdbRating: movie.imdbRating || 'N/A',
+    // Provide a unified averageRating (1-5) for UI; prefer explicit value otherwise convert IMDb 1-10 -> 1-5
+    averageRating:
+      movie.averageRating != null
+        ? movie.averageRating
+        : movie.imdbRating && movie.imdbRating !== 'N/A'
+        ? Number.parseFloat(movie.imdbRating) / 2
+        : null,
   }));
 
 const normalizeMovie = (movie) => ({
   ...movie,
   imdbRating: movie.imdbRating || 'N/A',
+  averageRating:
+    movie.averageRating != null
+      ? movie.averageRating
+      : movie.imdbRating && movie.imdbRating !== 'N/A'
+      ? Number.parseFloat(movie.imdbRating) / 2
+      : null,
   Type: movie.Type || 'movie',
 });
 

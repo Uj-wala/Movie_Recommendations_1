@@ -12,7 +12,12 @@ export const MovieCard = ({
 }) => {
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
   const posterUrl = movie.Poster === 'N/A' ? placeholderImage : movie.Poster;
-  const rating = movie.imdbRating && movie.imdbRating !== 'N/A' ? movie.imdbRating : null;
+  // Prefer averageRating (1-5) from backend; otherwise convert imdbRating (1-10) to 1-5 scale
+  const rating = (movie.averageRating != null)
+    ? String(movie.averageRating)
+    : movie.imdbRating && movie.imdbRating !== 'N/A'
+      ? String(Number.parseFloat(movie.imdbRating) / 2)
+      : null;
 
   const handleMouseMove = (event) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -86,7 +91,7 @@ export const MovieCard = ({
             {rating && (
               <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-300/20 px-2 py-0.5 text-[0.68rem] font-black text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.25)]">
                 <FiStar className="fill-current text-amber-300" />
-                {Number.parseFloat(rating).toFixed(1)}
+                {Number.parseFloat(rating).toFixed(1)}/5
               </span>
             )}
           </div>

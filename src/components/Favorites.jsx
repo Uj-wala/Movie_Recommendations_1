@@ -92,6 +92,15 @@ export const Favorites = ({
                       <div className="min-w-0 flex-1">
                         <h3 className="line-clamp-2 font-black text-white">{movie.Title}</h3>
                         <p className="mt-1 text-sm text-slate-400">{movie.Year} • {movie.Type}</p>
+                        { (movie.averageRating != null || movie.imdbRating) && (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/60 bg-amber-300/20 px-2 py-0.5 text-[0.68rem] font-black text-amber-200 shadow-[0_0_18px_rgba(251,191,36,0.25)]">
+                              <FiStar className="fill-current text-amber-300" />
+                              {movie.averageRating != null ? Number.parseFloat(movie.averageRating).toFixed(1) : Number.parseFloat(movie.imdbRating || 0) / 2}
+                              /5
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"

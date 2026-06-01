@@ -229,10 +229,13 @@ export const MovieModal = ({
                       {details.Runtime}
                     </span>
                   )}
-                  {details.imdbRating && details.imdbRating !== 'N/A' && (
+                  {(details.averageRating != null || (details.imdbRating && details.imdbRating !== 'N/A')) && (
                     <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-300/20 px-3 py-1.5 text-amber-200 shadow-[0_0_22px_rgba(251,191,36,0.25)]">
                       <FiStar className="fill-current text-amber-300" />
-                      {Number.parseFloat(details.imdbRating).toFixed(1)}/10
+                      {details.averageRating != null
+                        ? Number.parseFloat(details.averageRating).toFixed(1)
+                        : Number.parseFloat(details.imdbRating) / 2
+                      }/5
                     </span>
                   )}
                 </div>
@@ -267,12 +270,26 @@ export const MovieModal = ({
                     Ratings
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {ratings.map((rating) => (
-                      <div key={rating.Source} className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{rating.Source}</p>
-                        <p className="mt-2 text-lg font-black text-white">{rating.Value}</p>
-                      </div>
-                    ))}
+                    {ratings.map((rating) => {
+                      let displayValue = rating.Value;
+                      try {
+                        const v = String(rating.Value).trim();
+                        // Convert any "/10" values to "/5" by halving the numeric part
+                        if (v.endsWith('/10')) {
+                          const num = parseFloat(v.split('/')[0]);
+                          if (!Number.isNaN(num)) displayValue = `${(num / 2).toFixed(1)}/5`;
+                        }
+                      } catch (e) {
+                        // fallback: leave original value
+                      }
+
+                      return (
+                        <div key={rating.Source} className="rounded-2xl border border-white/10 bg-white/10 p-4">
+                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">{rating.Source}</p>
+                          <p className="mt-2 text-lg font-black text-white">{displayValue}</p>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
