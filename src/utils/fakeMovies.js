@@ -137,7 +137,7 @@ export const fakeMovies = [
     Title: 'Retrograde City',
     Year: '2023',
     Type: 'movie',
-    Poster: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?auto=format&fit=crop&w=600&q=80',
+    Poster: 'https://images.pexels.com/photos/15399602/pexels-photo-15399602.jpeg?cs=srgb&dl=pexels-ernestbusalpa-15399602.jpg&fm=jpg',
     imdbRating: '7.6',
     averageRating: 3.8,
     Released: '16 Mar 2023',
@@ -163,7 +163,7 @@ export const getFakeMovies = (searchTerm = '', limit = fakeMovies.length) => {
       )
     : fakeMovies;
 
-  return (matches.length ? matches : fakeMovies).slice(0, limit);
+  return matches.slice(0, limit);
 };
 
 export const getFakeMovieDetails = (imdbID) =>

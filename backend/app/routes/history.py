@@ -1,23 +1,40 @@
-from typing import List
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.controllers.history_controller import HistoryController
 from app.database.session import get_db
-from app.models.search_history import SearchHistory
-from app.schemas.history import SearchHistoryItem
+from app.schemas.error import ErrorResponse, ValidationErrorResponse
+from app.schemas.history import SearchHistoryQuery, SearchHistoryResponse
 from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/history", tags=["history"])
 
 
-@router.get("/", response_model=List[SearchHistoryItem])
-def get_history(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    items = (
-        db.query(SearchHistory)
-        .filter(SearchHistory.user_id == current_user.id)
-        .order_by(SearchHistory.created_at.desc())
-        .limit(50)
-        .all()
+@router.get(
+    "",
+    response_model=SearchHistoryResponse,
+    responses={
+        400: {"model": ValidationErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Unauthorized"},
+        404: {"model": ErrorResponse, "description": "User not found"},
+    },
+)
+def get_history(
+    query: SearchHistoryQuery = Depends(),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    items, total, total_pages = HistoryController.get_history(
+        db=db,
+        current_user=current_user,
+        page=query.page,
+        limit=query.limit,
     )
-    return items
+    return {
+        "success": True,
+        "data": items,
+        "page": query.page,
+        "limit": query.limit,
+        "total": total,
+        "total_pages": total_pages,
+    }

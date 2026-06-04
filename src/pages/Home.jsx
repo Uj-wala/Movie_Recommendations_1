@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FiAlertTriangle, FiFilm, FiTrendingUp, FiZap, FiLogIn, FiLogOut, FiUserPlus } from 'react-icons/fi';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/useTheme';
 import { useToast } from '../context/useToast';
 import {
@@ -13,6 +15,7 @@ import {
   removeFavorite,
   setAuthorizationHeader,
   clearAuth,
+  getSearchHistory,
 } from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { CinematicBackground } from '../components/CinematicBackground';
@@ -22,25 +25,52 @@ import { MovieModal } from '../components/MovieModal';
 import { Loader } from '../components/Loader';
 import { Pagination } from '../components/Pagination';
 import { Navbar } from '../components/Navbar';
-import { Favorites } from '../components/Favorites';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { AuthModal } from '../components/AuthModal';
+import heroPoster from '../assets/hero-poster.svg';
+import { FavoritesPage } from './FavoritesPage';
 
 const normalizeFavorite = (favorite) => ({
   ...favorite,
-  imdbID: favorite.imdb_id,
-  Title: favorite.title,
-  Year: favorite.year,
-  Poster: favorite.poster_url,
-  Type: 'movie',
+  imdbID: favorite.imdbID || favorite.imdb_id,
+  Title: favorite.Title || favorite.title,
+  Year: favorite.Year || favorite.year,
+  Poster: favorite.Poster || favorite.poster_url,
+  Type: favorite.Type || favorite.type || 'movie',
+});
+
+const normalizeFavoritesList = (favoriteList = []) => {
+  const favoritesMap = new Map();
+
+  favoriteList.forEach((favorite) => {
+    const normalized = normalizeFavorite(favorite);
+    if (normalized.imdbID) {
+      favoritesMap.set(normalized.imdbID, normalized);
+    }
+  });
+
+  return Array.from(favoritesMap.values());
+};
+
+const toStoredFavorite = (movie) => ({
+  imdbID: movie.imdbID,
+  Title: movie.Title,
+  Year: movie.Year,
+  Poster: movie.Poster,
+  Type: movie.Type || 'movie',
+  imdbRating: movie.imdbRating,
+  averageRating: movie.averageRating,
 });
 
 export const Home = () => {
   const { isDark } = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [movies, setMovies] = useState([]);
   const [featuredMovies, setFeaturedMovies] = useState([]);
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [popularMovies, setPopularMovies] = useState([]);
+  const [telugu2025Movies, setTelugu2025Movies] = useState([]);
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,17 +79,30 @@ export const Home = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useState([]);
+  const [localFavorites, setLocalFavorites] = useLocalStorage('favoriteMovies', []);
+  const [favorites, setFavorites] = useState(() => normalizeFavoritesList(localFavorites));
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useLocalStorage('recentSearches', []);
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
+  const [searchHistoryPage, setSearchHistoryPage] = useState(1);
+  const [searchHistoryLimit] = useState(8);
+  const [searchHistoryTotalPages, setSearchHistoryTotalPages] = useState(0);
+  const [searchHistoryTotal, setSearchHistoryTotal] = useState(0);
   const [authToken, setAuthToken] = useLocalStorage('authToken', '');
   const [authEmail, setAuthEmail] = useLocalStorage('authEmail', '');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const searchRequestIdRef = useRef(0);
   const { addToast } = useToast();
+  const activeView = location.pathname.startsWith('/favorites') ? 'favorites' : 'home';
+
+  const replaceFavorites = useCallback((nextFavorites) => {
+    const normalizedFavorites = normalizeFavoritesList(nextFavorites);
+    setFavorites(normalizedFavorites);
+    setLocalFavorites(normalizedFavorites);
+    return normalizedFavorites;
+  }, [setLocalFavorites]);
 
   const validateAuthCredentials = (emailValue, passwordValue) => {
     const email = emailValue.trim();
@@ -81,6 +124,7 @@ export const Home = () => {
         setFeaturedMovies(result.data.featured);
         setTrendingMovies(result.data.trending);
         setPopularMovies(result.data.popular);
+        setTelugu2025Movies(result.data.telugu2025 || []);
       } else {
         setError(result.error || 'No movies found');
       }
@@ -93,42 +137,62 @@ export const Home = () => {
   }, []);
 
   useEffect(() => {
-    if (authToken) {
-      setAuthorizationHeader(authToken);
-      loadFavorites();
-    }
-  }, [authToken]);
-
-  useEffect(() => {
     const handler = () => {
       setAuthToken('');
       setAuthEmail('');
-      setFavorites([]);
+      setFavorites(normalizeFavoritesList(localFavorites));
       setError('');
       addToast('Session expired. Please sign in again.', 'warning');
     };
     window.addEventListener('cineverse:auth_cleared', handler);
     return () => window.removeEventListener('cineverse:auth_cleared', handler);
-  }, [addToast, setAuthEmail, setAuthToken]);
+  }, [addToast, localFavorites, setAuthEmail, setAuthToken]);
 
   const loadFavorites = useCallback(async () => {
-    if (!authToken) {
-      setFavorites([]);
-      return;
-    }
-
     setFavoritesLoading(true);
     setError('');
     const result = await getFavorites();
     if (result.success) {
-      setFavorites(result.data.map(normalizeFavorite));
+      replaceFavorites(result.data);
     } else {
       setError(result.error || 'Unable to load watchlist');
     }
     setFavoritesLoading(false);
-  }, [authToken]);
+  }, [replaceFavorites]);
 
-  const handleSearch = useCallback(async (term) => {
+  const loadSearchHistory = useCallback(async (page = 1) => {
+    if (!authToken) {
+      return;
+    }
+
+    const result = await getSearchHistory(page, searchHistoryLimit);
+    if (result.success) {
+      setRecentSearches(result.data);
+      setSearchHistoryPage(result.page || page);
+      setSearchHistoryTotalPages(result.totalPages || 0);
+      setSearchHistoryTotal(result.total || 0);
+    }
+  }, [authToken, searchHistoryLimit, setRecentSearches]);
+
+  useEffect(() => {
+    if (authToken) {
+      setAuthorizationHeader(authToken);
+      loadFavorites();
+      loadSearchHistory(1);
+      return;
+    }
+
+    setAuthorizationHeader(null);
+    setSearchHistoryPage(1);
+    setSearchHistoryTotalPages(0);
+    setSearchHistoryTotal(0);
+  }, [authToken, loadFavorites, loadSearchHistory]);
+
+  const handleSearch = useCallback(async (term, options = {}) => {
+    const { remember = true } = options;
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+
     if (!term.trim()) {
       setMovies([]);
       setError('');
@@ -144,15 +208,34 @@ export const Home = () => {
     setIsLoading(true);
     setError('');
 
-    setRecentSearches((prev) => [query, ...prev.filter((item) => item.toLowerCase() !== query.toLowerCase())].slice(0, 6));
+    if (remember) {
+      if (!authToken) {
+        // Keep local recent searches capped when the user is not signed in.
+        setRecentSearches((prev) => {
+          const filtered = prev.filter((item) => {
+            const keyword = typeof item === 'string' ? item : item.keyword;
+            return keyword.toLowerCase() !== query.toLowerCase();
+          });
+          return [query, ...filtered].slice(0, 10);
+        });
+      } else {
+        // Refresh page 1 so the newest search appears at the top of the history feed.
+        setTimeout(() => loadSearchHistory(1), 500);
+      }
+    }
 
     const result = await searchMovies(query, 1);
 
+    if (requestId !== searchRequestIdRef.current) {
+      return;
+    }
+
     if (result.success) {
-      setMovies(result.data.Search || []);
+      const moviesFound = result.data.Search || [];
+      setMovies(moviesFound);
       const pages = Math.ceil(result.data.totalResults / 10);
       setTotalPages(pages);
-      setError('');
+      setError(moviesFound.length > 0 ? '' : 'No movies found');
     } else {
       setMovies([]);
       setError(result.error || 'No movies found');
@@ -160,7 +243,13 @@ export const Home = () => {
     }
 
     setIsLoading(false);
-  }, [setRecentSearches]);
+  }, [setRecentSearches, authToken, loadSearchHistory]);
+
+  const handleSearchHistoryPageChange = useCallback((page) => {
+    if (!authToken) return;
+    if (page < 1 || page > searchHistoryTotalPages) return;
+    loadSearchHistory(page);
+  }, [authToken, loadSearchHistory, searchHistoryTotalPages]);
 
   const handlePageChange = useCallback(async (page) => {
     if (!searchTerm.trim() || page < 1 || page > totalPages) return;
@@ -224,7 +313,6 @@ export const Home = () => {
       setAuthToken(token);
       setAuthEmail(email);
       setAuthorizationHeader(token);
-      await loadFavorites();
       addToast('Signed in successfully.', 'success');
       setIsAuthModalOpen(false);
     } catch (err) {
@@ -240,30 +328,41 @@ export const Home = () => {
     clearAuth();
     setAuthToken('');
     setAuthEmail('');
-    setFavorites([]);
+    setFavorites(normalizeFavoritesList(localFavorites));
     setError('');
     addToast('Logged out successfully.', 'info');
   };
 
   const handleFavoriteToggle = useCallback(async (imdbID) => {
-    if (!authToken) {
-      addToast('Please login to save favorites.', 'warning');
-      handleAuthOpen('login');
-      return;
-    }
-
     const existing = favorites.find((f) => f.imdbID === imdbID);
     const movieToToggle = movies.find((m) => m.imdbID === imdbID) ||
       featuredMovies.find((m) => m.imdbID === imdbID) ||
+      trendingMovies.find((m) => m.imdbID === imdbID) ||
+      popularMovies.find((m) => m.imdbID === imdbID) ||
+      telugu2025Movies.find((m) => m.imdbID === imdbID) ||
       selectedMovie ||
       favorites.find((f) => f.imdbID === imdbID);
 
     if (!movieToToggle) return;
 
+    if (!authToken) {
+      if (existing) {
+        replaceFavorites(localFavorites.filter((movie) => movie.imdbID !== imdbID));
+        addToast('Removed from local watchlist.', 'info');
+        return;
+      }
+
+      const storedMovie = toStoredFavorite(movieToToggle);
+      if (localFavorites.some((movie) => movie.imdbID === imdbID)) return;
+      replaceFavorites([storedMovie, ...localFavorites]);
+      addToast('Added to local watchlist.', 'success');
+      return;
+    }
+
     if (existing) {
       const result = await removeFavorite(imdbID);
       if (result.success) {
-        setFavorites((prev) => prev.filter((fav) => fav.imdbID !== imdbID));
+        replaceFavorites(localFavorites.filter((fav) => fav.imdbID !== imdbID));
         addToast('Removed from your watchlist.', 'info');
       } else {
         const message = result.error || 'Unable to remove favorite';
@@ -275,14 +374,26 @@ export const Home = () => {
 
     const result = await addFavorite(movieToToggle);
     if (result.success) {
-      setFavorites((prev) => [normalizeFavorite(result.data), ...prev]);
+      replaceFavorites([result.data, ...localFavorites]);
       addToast('Added to your watchlist.', 'success');
     } else {
       const message = result.error || 'Unable to save favorite';
       setError(message);
       addToast(message, 'error');
     }
-  }, [authToken, favorites, movies, featuredMovies, selectedMovie]);
+  }, [
+    authToken,
+    favorites,
+    movies,
+    featuredMovies,
+    trendingMovies,
+    popularMovies,
+    telugu2025Movies,
+    selectedMovie,
+    localFavorites,
+    replaceFavorites,
+    addToast,
+  ]);
 
   const isFavorite = (imdbID) => favorites.some((m) => m.imdbID === imdbID);
 
@@ -296,8 +407,10 @@ export const Home = () => {
     setTimeout(() => setSelectedMovie(null), 300);
   };
 
-  const visibleMovies = movies.length ? movies : featuredMovies;
-  const isDiscoveryMode = movies.length === 0 && !searchTerm;
+  const isSearchActive = Boolean(searchTerm.trim());
+  const hasSearchResults = movies.length > 0;
+  const visibleMovies = hasSearchResults ? movies : (!isSearchActive ? featuredMovies : []);
+  const isDiscoveryMode = !isSearchActive;
   const heroMovie = featuredMovies[0];
   const isAuthenticated = Boolean(authToken);
 
@@ -307,9 +420,21 @@ export const Home = () => {
 
       <Navbar
         favoriteCount={favorites.length}
-        onFavoritesClick={() => setIsFavoritesOpen(true)}
+        activeView={activeView}
+        onHomeClick={() => navigate('/')}
+        onFavoritesClick={() => navigate('/favorites')}
       />
 
+      {activeView === 'favorites' ? (
+        <FavoritesPage
+          favorites={favorites}
+          onBack={() => navigate('/')}
+          onMovieClick={handleMovieClick}
+          onFavoriteToggle={handleFavoriteToggle}
+          isFavorite={isFavorite}
+          isLoading={favoritesLoading}
+        />
+      ) : (
       <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
         <motion.section
           initial={{ opacity: 0, y: 28 }}
@@ -318,29 +443,29 @@ export const Home = () => {
           className="grid min-h-[calc(100vh-8rem)] items-center gap-12 py-12 md:min-h-[calc(100vh-7rem)] lg:grid-cols-[1.05fr_0.95fr]"
         >
           <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.26em] text-cyan-100 shadow-[0_0_32px_rgba(34,211,238,0.18)] backdrop-blur-xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.26em] text-cyan-700 shadow-[0_0_32px_rgba(34,211,238,0.18)] backdrop-blur-xl dark:text-cyan-100">
               <FiZap />
               OMDb powered cinema radar
             </div>
             <div className="max-w-3xl">
-              <h1 className="text-4xl font-black leading-[0.95] tracking-normal text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+              <h1 className="text-4xl font-black leading-[0.95] tracking-normal text-theme-strong sm:text-5xl lg:text-6xl xl:text-7xl">
                 CineVerse
-                <span className="block bg-gradient-to-r from-cyan-200 via-fuchsia-300 to-indigo-300 bg-clip-text text-transparent">
+                <span className="block text-slate-700 dark:text-cyan-200">
                   Neural Listings
                 </span>
               </h1>
-              <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+              <p className="mt-6 max-w-2xl text-base leading-7 text-theme-muted sm:text-lg">
                 Search the OMDb universe, build a live watchlist, and save your watchlist into SQLite-backed storage through the FastAPI backend.
               </p>
             </div>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-theme-muted">
                 {isAuthenticated ? (
                   <p>
-                    Signed in as <span className="font-black text-white">{authEmail}</span>
+                    Signed in as <span className="font-black text-theme-strong">{authEmail}</span>
                   </p>
                 ) : (
-                  <p>Please login or register to save favorites to the database.</p>
+                  <p>Favorites save locally. Login or register to save them with the backend API.</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-4">
@@ -349,14 +474,14 @@ export const Home = () => {
                     <button
                       type="button"
                       onClick={() => handleAuthOpen('login')}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/30 bg-cyan-300/10 px-5 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/15"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-cyan-300/60 bg-gradient-to-r from-cyan-300 to-sky-200 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(34,211,238,0.4)] dark:from-cyan-400 dark:to-sky-300"
                     >
                       <FiLogIn /> Login
                     </button>
                     <button
                       type="button"
                       onClick={() => handleAuthOpen('register')}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-300/30 bg-fuchsia-300/10 px-5 py-3 text-sm font-black text-fuchsia-100 transition hover:bg-fuchsia-300/15"
+                      className="inline-flex items-center gap-2 rounded-2xl border border-fuchsia-300/60 bg-gradient-to-r from-fuchsia-300 to-pink-200 px-5 py-3 text-sm font-black text-slate-950 shadow-[0_0_24px_rgba(217,70,239,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_0_34px_rgba(217,70,239,0.36)] dark:from-fuchsia-400 dark:to-pink-300"
                     >
                       <FiUserPlus /> Register
                     </button>
@@ -365,7 +490,7 @@ export const Home = () => {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white/15"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-black text-theme-strong transition hover:bg-white/15"
                   >
                     <FiLogOut /> Logout
                   </button>
@@ -377,6 +502,14 @@ export const Home = () => {
               isLoading={isLoading}
               recentSearches={recentSearches}
               onRecentSearch={handleSearch}
+              historyPagination={{
+                page: searchHistoryPage,
+                totalPages: searchHistoryTotalPages,
+                totalItems: searchHistoryTotal,
+                limit: searchHistoryLimit,
+              }}
+              onHistoryPageChange={handleSearchHistoryPageChange}
+              isAuthenticated={isAuthenticated}
             />
           </div>
 
@@ -390,15 +523,15 @@ export const Home = () => {
             {heroMovie && (
               <div className="absolute inset-0 rotate-2 rounded-[2rem] border border-white/15 bg-white/10 p-4 shadow-[0_30px_100px_rgba(79,70,229,0.34)] backdrop-blur-2xl">
                 <img
-                  src={heroMovie.Poster}
+                  src={heroPoster}
                   alt={heroMovie.Title}
-                  className="h-full w-full rounded-[1.45rem] object-cover opacity-80"
+                  className="h-full w-full rounded-[1.45rem] object-cover object-center"
                 />
                 <div className="absolute inset-4 rounded-[1.45rem] bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent" />
                 <div className="absolute bottom-10 left-10 right-10">
                   <p className="text-sm font-bold uppercase tracking-[0.28em] text-cyan-200">Featured signal</p>
-                  <h2 className="mt-2 text-4xl font-black text-white">{heroMovie.Title}</h2>
-                  <p className="mt-2 text-slate-300">{heroMovie.Type} • {heroMovie.Year}</p>
+                  <h2 className="mt-2 text-4xl font-black text-theme-strong">{heroMovie.Title}</h2>
+                  <p className="mt-2 text-theme-muted">{heroMovie.Type} / {heroMovie.Year}</p>
                 </div>
               </div>
             )}
@@ -408,11 +541,11 @@ export const Home = () => {
         <section className="relative">
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.22em] text-cyan-200">
+              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.22em] text-slate-600 dark:text-cyan-200">
                 {isDiscoveryMode ? <FiTrendingUp /> : <FiFilm />}
                 {isDiscoveryMode ? 'Trending movies' : `Search results for "${searchTerm}"`}
               </div>
-              <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">
+              <h2 className="mt-2 text-3xl font-black text-theme-strong sm:text-4xl">
                 {isDiscoveryMode ? 'Featured launch queue' : 'Matched transmissions'}
               </h2>
             </div>
@@ -488,8 +621,22 @@ export const Home = () => {
                   isFavorite={isFavorite}
                 />
               )}
-              {trendingMovies.length === 0 && popularMovies.length === 0 && <NoMoviesFound />}
+              {telugu2025Movies.length > 0 && (
+                <MovieSection
+                  title="Telugu movies 2025"
+                  eyebrow="Local API collection"
+                  movies={telugu2025Movies}
+                  onMovieClick={handleMovieClick}
+                  onFavoriteToggle={handleFavoriteToggle}
+                  isFavorite={isFavorite}
+                />
+              )}
+              {trendingMovies.length === 0 && popularMovies.length === 0 && telugu2025Movies.length === 0 && <NoMoviesFound />}
             </div>
+          )}
+
+          {!isLoading && !featuredLoading && !isDiscoveryMode && visibleMovies.length === 0 && (
+            <NoMoviesFound />
           )}
 
           {!isLoading && movies.length > 0 && (
@@ -504,6 +651,7 @@ export const Home = () => {
           )}
         </section>
       </main>
+      )}
 
       <AnimatePresence>
         {selectedMovie && (
@@ -520,15 +668,6 @@ export const Home = () => {
         )}
       </AnimatePresence>
 
-      <Favorites
-        favorites={favorites}
-        onMovieClick={handleMovieClick}
-        onFavoriteToggle={handleFavoriteToggle}
-        isOpen={isFavoritesOpen}
-        onClose={() => setIsFavoritesOpen(false)}
-        isLoading={favoritesLoading}
-      />
-
       <AuthModal
         isOpen={isAuthModalOpen}
         mode={authMode}
@@ -544,11 +683,11 @@ export const Home = () => {
 const MovieSection = ({ title, eyebrow, movies, onMovieClick, onFavoriteToggle, isFavorite }) => (
   <section>
     <div className="mb-6">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-fuchsia-200">{eyebrow}</p>
-      <h3 className="mt-2 text-2xl font-black text-white sm:text-3xl">{title}</h3>
+      <p className="text-sm font-black uppercase tracking-[0.22em] text-fuchsia-600 dark:text-fuchsia-200">{eyebrow}</p>
+      <h3 className="mt-2 text-2xl font-black text-theme-strong sm:text-3xl">{title}</h3>
     </div>
     <motion.div
-      className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       initial="hidden"
       whileInView="show"
       viewport={{ once: true, margin: '-80px' }}
@@ -575,7 +714,7 @@ const MovieSection = ({ title, eyebrow, movies, onMovieClick, onFavoriteToggle, 
 );
 
 const NoMoviesFound = () => (
-  <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center text-slate-300 backdrop-blur-xl">
+  <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center text-theme-muted backdrop-blur-xl">
     No movies found.
   </div>
 );

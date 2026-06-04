@@ -4,6 +4,7 @@ from pathlib import Path
 import httpx
 from fastapi import HTTPException, status
 from dotenv import load_dotenv
+from app.services.telugu_2025_service import search_telugu_2025_movies
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / '.env')
@@ -114,6 +115,19 @@ def _get_api_url() -> str:
 
 
 async def search_movies(title: str, page: int = 1) -> dict:
+    telugu_result = search_telugu_2025_movies(title, page)
+    normalized_title = title.strip().lower()
+    should_use_telugu_catalog = (
+        telugu_result["total_results"] > 0
+        and (
+            "telugu" in normalized_title
+            or "2025" in normalized_title
+            or any(movie["title"].lower() == normalized_title for movie in telugu_result["results"])
+        )
+    )
+    if should_use_telugu_catalog:
+        return telugu_result
+
     api_key = _get_api_key()
     if not api_key:
         query = title.strip().lower()
@@ -122,8 +136,6 @@ async def search_movies(title: str, page: int = 1) -> dict:
             for movie in FALLBACK_MOVIES
             if query in movie["title"].lower() or query in movie["year"].lower()
         ]
-        if not matches:
-            matches = FALLBACK_MOVIES
 
         page_size = 10
         start = (page - 1) * page_size
@@ -164,6 +176,9 @@ async def search_movies(title: str, page: int = 1) -> dict:
         ) from exc
 
     if data.get("Response") == "False":
+        if telugu_result["total_results"] > 0:
+            return telugu_result
+
         message = data.get("Error", "Movie not found")
         if message.lower().startswith("movie not found"):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movie not found")

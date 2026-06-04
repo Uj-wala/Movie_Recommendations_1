@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiClock, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
@@ -43,7 +44,7 @@ export const MovieModal = ({
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, movie]);
+  }, [isOpen, movie, reviewsPage, reviewsPageSize]);
 
   useEffect(() => {
     if (!isOpen || !movie) return undefined;
@@ -71,7 +72,7 @@ export const MovieModal = ({
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, movie]);
+  }, [isOpen, movie, reviewsPage, reviewsPageSize]);
 
   const userReview = reviews.find((review) => review.user_email === authEmail);
 
@@ -255,7 +256,7 @@ export const MovieModal = ({
                 }`}
               >
                 <FiHeart className={isFavorite ? 'fill-current' : ''} />
-                {isFavorite ? 'In Watchlist' : 'Add to Watchlist'}
+                {isFavorite ? 'In Favorites' : 'Add to Favorites'}
               </button>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -279,7 +280,7 @@ export const MovieModal = ({
                           const num = parseFloat(v.split('/')[0]);
                           if (!Number.isNaN(num)) displayValue = `${(num / 2).toFixed(1)}/5`;
                         }
-                      } catch (e) {
+                      } catch {
                         // fallback: leave original value
                       }
 

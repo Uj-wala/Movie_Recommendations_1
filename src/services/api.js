@@ -28,13 +28,13 @@ apiClient.interceptors.response.use(
       try {
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(USER_EMAIL_KEY);
-      } catch (e) {
+      } catch {
         // ignore
       }
       delete apiClient.defaults.headers.common.Authorization;
       try {
         window.dispatchEvent(new Event('cineverse:auth_cleared'));
-      } catch (e) {
+      } catch {
         // ignore in non-browser environments
       }
     }
@@ -219,18 +219,36 @@ export const searchMovies = async (searchTerm, page = 1) => {
       },
     });
 
+    const normalizedResults = normalizeMovies(
+      (data.results || []).map((movie) => ({
+        imdbID: movie.imdb_id,
+        Title: movie.title,
+        Year: movie.year,
+        Type: movie.type,
+        Poster: movie.poster,
+      }))
+    );
+
+    if (normalizedResults.length === 0) {
+      const fakeResults = getFakeMovies(searchTerm);
+
+      if (fakeResults.length > 0) {
+        return {
+          success: true,
+          isFallback: true,
+          error: '',
+          data: {
+            Search: paginate(fakeResults, page),
+            totalResults: fakeResults.length,
+          },
+        };
+      }
+    }
+
     return {
       success: true,
       data: {
-        Search: normalizeMovies(
-          (data.results || []).map((movie) => ({
-            imdbID: movie.imdb_id,
-            Title: movie.title,
-            Year: movie.year,
-            Type: movie.type,
-            Poster: movie.poster,
-          }))
-        ),
+        Search: normalizedResults,
         totalResults: Number(data.total_results || 0),
       },
     };
@@ -321,10 +339,45 @@ export const getMovieCollection = async (searchTerm, limit = 4) => {
   };
 };
 
+export const getTelugu2025Movies = async (page = 1, pageSize = 10, query = '') => {
+  try {
+    const { data } = await apiClient.get('/movies/telugu/2025', {
+      params: { q: query, page, page_size: pageSize },
+    });
+
+    return {
+      success: true,
+      data: {
+        Search: normalizeMovies(
+          (data.results || []).map((movie) => ({
+            imdbID: movie.imdb_id,
+            Title: movie.title,
+            Year: movie.year,
+            Type: movie.type,
+            Poster: movie.poster || 'N/A',
+            imdbRating: movie.imdb_rating,
+            Plot: movie.plot || 'No description available.',
+            averageRating: movie.average_rating,
+          }))
+        ),
+        totalResults: Number(data.total_results || 0),
+      },
+      error: '',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      data: { Search: [], totalResults: 0 },
+      error: formatError(error),
+    };
+  }
+};
+
 export const getHomeMovieSections = async () => {
-  const [trending, popular] = await Promise.all([
+  const [trending, popular, telugu2025] = await Promise.all([
     getMovieCollection('marvel', 4),
     getMovieCollection('batman', 4),
+    getTelugu2025Movies(1, 4),
   ]);
 
   const fallbackTrending = fakeMovies.slice(0, 4);
@@ -340,9 +393,39 @@ export const getHomeMovieSections = async () => {
       featured,
       trending: trending.data.length ? trending.data : fallbackTrending,
       popular: popular.data.length ? popular.data : fallbackPopular,
+      telugu2025: telugu2025.success ? telugu2025.data.Search : [],
     },
     error: '',
   };
+};
+
+/**
+ * Fetch search history for the current user (requires authentication)
+ * @returns {Promise} - Array of search history items with timestamps
+ */
+export const getSearchHistory = async (page = 1, limit = 8) => {
+  try {
+    const { data } = await apiClient.get('/history/', {
+      params: { page, limit },
+    });
+
+    const history = Array.isArray(data?.data)
+      ? data.data
+      : Array.isArray(data)
+        ? data
+        : [];
+
+    return {
+      success: true,
+      data: history,
+      page: Number(data?.page || page),
+      limit: Number(data?.limit || limit),
+      total: Number(data?.total || history.length),
+      totalPages: Number(data?.total_pages || 0),
+    };
+  } catch (error) {
+    return { success: false, error: formatError(error), data: [], page, limit, total: 0, totalPages: 0 };
+  }
 };
 
 const normalizeMovies = (movies) =>

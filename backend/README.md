@@ -29,5 +29,37 @@ This backend powers movie search and favorites for the Movie Recommendation App.
 - POST /favorites (auth)
 - GET /favorites (auth)
 - DELETE /favorites/{movie_id} (auth)
+- GET /dashboard (auth)
+- GET /history?page=1&limit=10 (auth)
+
+Dashboard response:
+```json
+{
+  "total_favorites": 12,
+  "total_searches": 35,
+  "recent_searches": ["Batman", "Interstellar", "Avatar"]
+}
+```
+
+Search history response:
+```json
+{
+  "success": true,
+  "data": [
+    { "keyword": "Batman", "searched_at": "2026-06-04T10:00:00Z" }
+  ],
+  "page": 1,
+  "limit": 10,
+  "total": 1,
+  "total_pages": 1
+}
+```
+
+Common error responses:
+```json
+{ "success": false, "message": "Invalid request" }
+{ "success": false, "message": "User not found" }
+{ "success": false, "message": "Unauthorized" }
+```
 
 Swagger docs are available at `/docs`.

@@ -1,3 +1,4 @@
+import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 // import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
@@ -8,6 +9,7 @@ import './index.css';
 function App() {
   return (
     // <ErrorBoundary>
+      <BrowserRouter>
       <ThemeProvider>
         
         <ToastProvider>
@@ -15,6 +17,7 @@ function App() {
           <ToastContainer />
         </ToastProvider>
       </ThemeProvider>
+      </BrowserRouter>
     /* </ErrorBoundary> */
   );
 }

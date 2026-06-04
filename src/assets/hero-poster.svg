@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" fill="none">
+  <rect width="900" height="1200" fill="#050713"/>
+  <rect width="900" height="1200" fill="url(#sky)"/>
+  <circle cx="690" cy="210" r="148" fill="url(#planet)"/>
+  <circle cx="690" cy="210" r="148" fill="url(#planetShade)"/>
+  <path d="M55 418C226 310 373 312 553 417C684 493 779 487 900 415V1200H55V418Z" fill="url(#haze)" opacity=".72"/>
+  <path d="M0 688C146 605 294 608 454 692C622 780 752 784 900 680V1200H0V688Z" fill="url(#ground)"/>
+  <path d="M0 795H900V1200H0V795Z" fill="#07111F"/>
+  <path d="M118 686H188V1200H118V686ZM224 612H307V1200H224V612ZM347 720H414V1200H347V720ZM468 648H561V1200H468V648ZM611 585H698V1200H611V585ZM742 705H822V1200H742V705Z" fill="#0B1024"/>
+  <path d="M143 718H165M143 762H165M143 806H165M143 850H165M143 894H165M143 938H165M143 982H165M143 1026H165M248 646H282M248 692H282M248 738H282M248 784H282M248 830H282M248 876H282M248 922H282M248 968H282M248 1014H282M633 620H675M633 666H675M633 712H675M633 758H675M633 804H675M633 850H675M633 896H675M633 942H675" stroke="#67E8F9" stroke-opacity=".38" stroke-width="8" stroke-linecap="round"/>
+  <path d="M450 592L514 1200H386L450 592Z" fill="url(#beam)" opacity=".82"/>
+  <path d="M450 522C506 522 552 568 552 624C552 680 506 726 450 726C394 726 348 680 348 624C348 568 394 522 450 522Z" fill="url(#heroGlow)"/>
+  <path d="M406 570C406 552 426 541 441 550L510 590C525 599 525 621 510 630L441 670C426 679 406 668 406 650V570Z" fill="#F8FAFC"/>
+  <path d="M228 194L242 224L274 238L242 252L228 284L214 252L182 238L214 224L228 194Z" fill="#67E8F9"/>
+  <path d="M758 520L767 539L786 548L767 557L758 576L749 557L730 548L749 539L758 520Z" fill="#F0ABFC"/>
+  <path d="M160 1116H740" stroke="url(#line)" stroke-width="6" stroke-linecap="round"/>
+  <text x="450" y="102" text-anchor="middle" fill="#E0F2FE" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800" letter-spacing="10">CINEVERSE</text>
+  <text x="450" y="1084" text-anchor="middle" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="900" letter-spacing="2">NEON HORIZON</text>
+  <text x="450" y="1146" text-anchor="middle" fill="#A5F3FC" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" letter-spacing="8">FEATURED SIGNAL</text>
+  <defs>
+    <linearGradient id="sky" x1="142" y1="80" x2="797" y2="1035" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#151143"/>
+      <stop offset=".45" stop-color="#0B1024"/>
+      <stop offset="1" stop-color="#030712"/>
+    </linearGradient>
+    <radialGradient id="planet" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(640 164) rotate(46) scale(246)">
+      <stop stop-color="#F0ABFC"/>
+      <stop offset=".48" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#111827"/>
+    </radialGradient>
+    <radialGradient id="planetShade" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(762 270) rotate(52) scale(209)">
+      <stop stop-color="#050713" stop-opacity=".02"/>
+      <stop offset="1" stop-color="#050713" stop-opacity=".68"/>
+    </radialGradient>
+    <linearGradient id="haze" x1="134" y1="372" x2="726" y2="977" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE" stop-opacity=".72"/>
+      <stop offset=".56" stop-color="#6366F1" stop-opacity=".42"/>
+      <stop offset="1" stop-color="#D946EF" stop-opacity=".58"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="54" y1="626" x2="791" y2="1124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0891B2" stop-opacity=".48"/>
+      <stop offset=".5" stop-color="#312E81" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#86198F" stop-opacity=".5"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="450" y1="592" x2="450" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9" stop-opacity=".82"/>
+      <stop offset=".55" stop-color="#D946EF" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#050713" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="heroGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(424 584) rotate(48) scale(188)">
+      <stop stop-color="#FDF4FF"/>
+      <stop offset=".34" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#A21CAF"/>
+    </radialGradient>
+    <linearGradient id="line" x1="160" y1="1116" x2="740" y2="1116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset=".5" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#D946EF"/>
+    </linearGradient>
+  </defs>
+</svg>

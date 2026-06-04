@@ -9,6 +9,9 @@ class MovieSummary(BaseModel):
     year: str
     type: str
     poster: str
+    plot: str | None = None
+    imdb_rating: str | None = None
+    average_rating: float | None = None
 
 
 class MovieSearchResponse(BaseModel):
