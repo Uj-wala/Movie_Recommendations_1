@@ -4,9 +4,11 @@ from sqlalchemy import func
 
 from app.database.session import get_db
 from app.models.review import Review
+from app.models.user import User
 from app.schemas.history import SearchKeywordQuery
 from app.schemas.movie import MovieDetailResponse, MovieSearchResponse
-from app.services.auth_service import get_current_user
+from app.repositories.movie_view_repository import MovieViewRepository
+from app.services.auth_service import get_current_user, get_optional_current_user
 from app.services.omdb_service import get_movie_by_imdb_id, search_movies
 from app.services.search_history_service import SearchHistoryService
 from app.services.telugu_2025_service import (
@@ -38,7 +40,11 @@ def telugu_2025_movies(
 
 
 @router.get("/{imdb_id}", response_model=MovieDetailResponse)
-async def movie_detail(imdb_id: str, db: Session = Depends(get_db)):
+async def movie_detail(
+    imdb_id: str,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+):
     local_movie = get_telugu_2025_movie_by_id(imdb_id)
     if local_movie:
         try:
@@ -48,6 +54,15 @@ async def movie_detail(imdb_id: str, db: Session = Depends(get_db)):
             average = None
 
         local_movie["average_rating"] = average
+        if current_user:
+            MovieViewRepository.upsert(
+                db=db,
+                user_id=current_user.id,
+                imdb_id=local_movie["imdb_id"],
+                title=local_movie["title"],
+                year=local_movie["year"],
+                poster_url=local_movie["poster"],
+            )
         return local_movie
 
     # Fetch movie data from OMDb service (or fallback)
@@ -61,4 +76,13 @@ async def movie_detail(imdb_id: str, db: Session = Depends(get_db)):
 
     # Attach average rating (1-5) to movie response
     data["average_rating"] = average
+    if current_user:
+        MovieViewRepository.upsert(
+            db=db,
+            user_id=current_user.id,
+            imdb_id=data["imdb_id"],
+            title=data["title"],
+            year=data["year"],
+            poster_url=data.get("poster") or "N/A",
+        )
     return data

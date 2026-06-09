@@ -106,27 +106,27 @@ html:not(.dark) .bg-slate-950,
 html:not(.dark) .bg-slate-950\/55,
 html:not(.dark) .bg-slate-950\/70,
 html:not(.dark) .bg-slate-950\/80 {
-  background-color: rgb(255 255 255 / 0.82);
+  background-color: rgb(226 232 240 / 0.94);
 }
 
 html:not(.dark) .bg-slate-900 {
-  background-color: #e2e8f0;
+  background-color: #d8e0ea;
 }
 
 html:not(.dark) .bg-white\/5 {
-  background-color: rgba(255, 255, 255, 0.96);
+  background-color: rgba(241, 245, 249, 0.97);
 }
 
 html:not(.dark) .bg-white\/10 {
-  background-color: rgba(255, 255, 255, 0.90);
+  background-color: rgba(233, 238, 244, 0.96);
 }
 
 html:not(.dark) .border-white\/10 {
-  border-color: rgba(100, 116, 139, 0.30);
+  border-color: rgba(148, 163, 184, 0.34);
 }
 
 html:not(.dark) .border-white\/15 {
-  border-color: rgba(100, 116, 139, 0.40);
+  border-color: rgba(148, 163, 184, 0.46);
 }
 
 html:not(.dark) .text-slate-200 {

@@ -8,9 +8,10 @@ from app.routes.auth import router as auth_router
 from app.routes.favorites import router as favorites_router
 from app.routes.history import router as history_router
 from app.routes.movies import router as movies_router
+from app.routes.recommendations import router as recommendations_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.reviews import router as reviews_router
-from app.models import favorite, review, search_history, user  # noqa: F401
+from app.models import favorite, movie_view, review, search_history, user, user_preference  # noqa: F401
 
 app = FastAPI(
     title="Movie Recommendation API",
@@ -35,6 +36,7 @@ app.include_router(auth_router)
 app.include_router(movies_router)
 app.include_router(favorites_router)
 app.include_router(history_router)
+app.include_router(recommendations_router)
 app.include_router(dashboard_router)
 app.include_router(reviews_router)
 

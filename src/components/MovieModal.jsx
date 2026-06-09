@@ -17,6 +17,7 @@ export const MovieModal = ({
   isAuthenticated,
   authEmail,
   onRequireAuth,
+  onMovieViewed,
 }) => {
   const { addToast } = useToast();
   const [movieDetails, setMovieDetails] = useState(null);
@@ -39,12 +40,15 @@ export const MovieModal = ({
     getMovieDetails(movie.imdbID).then((result) => {
       if (!isCurrent) return;
       setMovieDetails(result.success ? result.data : movie);
+      if (result.success) {
+        onMovieViewed?.(result.data);
+      }
     });
 
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, movie, reviewsPage, reviewsPageSize]);
+  }, [isOpen, movie, onMovieViewed]);
 
   useEffect(() => {
     if (!isOpen || !movie) return undefined;

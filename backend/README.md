@@ -31,6 +31,7 @@ This backend powers movie search and favorites for the Movie Recommendation App.
 - DELETE /favorites/{movie_id} (auth)
 - GET /dashboard (auth)
 - GET /history?page=1&limit=10 (auth)
+- GET /recommendations?limit=10 (auth)
 
 Dashboard response:
 ```json
@@ -52,6 +53,43 @@ Search history response:
   "limit": 10,
   "total": 1,
   "total_pages": 1
+}
+```
+
+Recommendations response:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "imdb_id": "fake-cine-003",
+      "title": "Chrome Dynasty",
+      "year": "2024",
+      "type": "movie",
+      "poster": "https://...",
+      "score": 18.4,
+      "matched_signals": ["action", "superhero"],
+      "reason": "Matches your action, superhero preferences."
+    }
+  ],
+  "total": 1,
+  "seed_terms": ["action", "superhero"],
+  "sources": ["favorites", "search_history", "previously_viewed"],
+  "preferred_genres": ["action", "superhero", "thriller"]
+}
+```
+
+The recommendations endpoint returns the list under `data` in the live API, not `recommended_movies`. If you need a one-item example, it looks like this:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "title": "The Dark Knight",
+      "genre": "Action",
+      "reason": "Based on your search history"
+    }
+  ]
 }
 ```
 

@@ -327,3 +327,15 @@ CineFind is designed for a smooth, enjoyable experience.
 Explore thousands of movies, build your watchlist, and enjoy the cinematic interface!
 
 **Happy viewing!** 🍿✨
+
+---
+
+## 🧠 Recommendation Requirements
+
+The recommendation layer now persists and uses the following data:
+
+- **Recently viewed movies**: Stored in the `movie_views` table and exposed through the `recently_viewed_movies` relationship on `User`
+- **User preferences**: Stored in the `user_preferences` table as inferred genre preferences
+- **Activity analysis**: Recommendations are generated from favorites, search history, and recently viewed movies
+- **Duplicate prevention**: Already saved or viewed movies are filtered out before recommendations are returned
+- **Empty state guidance**: When no recommendations are available yet, show `Start searching and adding favorites to get personalized recommendations.`

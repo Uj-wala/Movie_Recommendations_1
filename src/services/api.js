@@ -118,6 +118,18 @@ export const loginUser = async (email, password) => {
   }
 };
 
+export const resetPassword = async (email, newPassword) => {
+  try {
+    const { data } = await apiClient.post('/reset-password', {
+      email,
+      new_password: newPassword,
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
 export const getFavorites = async () => {
   try {
     const { data } = await apiClient.get('/favorites');
@@ -425,6 +437,55 @@ export const getSearchHistory = async (page = 1, limit = 8) => {
     };
   } catch (error) {
     return { success: false, error: formatError(error), data: [], page, limit, total: 0, totalPages: 0 };
+  }
+};
+
+/**
+ * Fetch personalized movie recommendations for the current user.
+ * @param {number} limit - Maximum number of recommendations to return.
+ * @returns {Promise} - Recommendation payload from the backend.
+ */
+export const getRecommendations = async (limit = 10) => {
+  try {
+    const { data } = await apiClient.get('/recommendations', {
+      params: { limit },
+    });
+
+    const recommendedMovies = Array.isArray(data?.data)
+      ? data.data.map((movie) => ({
+          imdbID: movie.imdb_id,
+          Title: movie.title,
+          Year: movie.year,
+          Type: movie.type || 'movie',
+          Poster: movie.poster,
+          Plot: movie.plot,
+          imdbRating: movie.imdb_rating,
+          averageRating: movie.average_rating,
+          genre: movie.genre,
+          score: movie.score,
+          matchedSignals: movie.matched_signals || [],
+          reason: movie.reason,
+        }))
+      : [];
+
+    return {
+      success: true,
+      data: recommendedMovies,
+      total: Number(data?.total || 0),
+      seedTerms: Array.isArray(data?.seed_terms) ? data.seed_terms : [],
+      sources: Array.isArray(data?.sources) ? data.sources : [],
+      preferredGenres: Array.isArray(data?.preferred_genres) ? data.preferred_genres : [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: formatError(error),
+      data: [],
+      total: 0,
+      seedTerms: [],
+      sources: [],
+      preferredGenres: [],
+    };
   }
 };
 

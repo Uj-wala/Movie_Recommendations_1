@@ -114,6 +114,50 @@ def _get_api_url() -> str:
     return os.getenv("OMDB_API_URL") or os.getenv("VITE_OMDB_API_URL") or "https://www.omdbapi.com"
 
 
+def resolve_online_poster(imdb_id: str | None = None, title: str | None = None, fallback_poster: str | None = None) -> str:
+    api_key = _get_api_key()
+    if not api_key:
+        return fallback_poster or "N/A"
+
+    try:
+        with httpx.Client(timeout=8.0) as client:
+            if imdb_id:
+                response = client.get(
+                    _get_api_url(),
+                    params={
+                        "apikey": api_key,
+                        "i": imdb_id,
+                        "plot": "short",
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                poster = data.get("Poster")
+                if poster and poster != "N/A":
+                    return poster
+
+            if title:
+                response = client.get(
+                    _get_api_url(),
+                    params={
+                        "apikey": api_key,
+                        "s": title,
+                        "type": "movie",
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                if data.get("Response") != "False":
+                    for movie in data.get("Search", []):
+                        poster = movie.get("Poster")
+                        if poster and poster != "N/A":
+                            return poster
+    except httpx.HTTPError:
+        pass
+
+    return fallback_poster or "N/A"
+
+
 async def search_movies(title: str, page: int = 1) -> dict:
     telugu_result = search_telugu_2025_movies(title, page)
     normalized_title = title.strip().lower()

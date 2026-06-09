@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.auth import LoginRequest, RegisterRequest, ResetPasswordRequest, TokenResponse, UserResponse
 from app.services.auth_service import create_access_token, hash_password, verify_password
+from app.repositories.user_repository import UserRepository
 
 router = APIRouter(tags=["auth"])
 
@@ -30,3 +31,15 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
     token = create_access_token(subject=str(user.id))
     return TokenResponse(access_token=token)
+
+
+@router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = UserRepository.get_by_email(db, payload.email)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+
+    return {"success": True, "message": "Password updated successfully"}

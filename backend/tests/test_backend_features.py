@@ -19,6 +19,7 @@ os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "60"
 
 from app.database.session import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.movie_view import MovieView  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.schemas.history import SearchKeywordQuery  # noqa: E402
@@ -204,6 +205,57 @@ class BackendFeatureTests(unittest.TestCase):
         self.assertEqual(data["total_favorites"], 2)
         self.assertEqual(data["total_searches"], 5)
         self.assertEqual(data["recent_searches"], ["Chrome", "Solaris", "Midnight"])
+
+    def test_recommendations_use_favorites_history_and_viewed_movies(self):
+        token = self.register_and_login(email="recommendations@example.com")
+
+        favorite_payload = {
+            "imdb_id": "fake-cine-002",
+            "title": "Midnight Solaris",
+            "year": "2025",
+            "poster_url": "https://example.com/b.jpg",
+        }
+        response = self.client.post(
+            "/favorites",
+            json=favorite_payload,
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(response.status_code, 201, response.text)
+
+        self.search_keywords(token, ["Batman", "Superman", "Justice League"])
+
+        viewed = self.client.get("/movies/fake-cine-001", headers=self.auth_headers(token))
+        self.assertEqual(viewed.status_code, 200, viewed.text)
+
+        recommendations = self.client.get(
+            "/recommendations",
+            params={"limit": 5},
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(recommendations.status_code, 200, recommendations.text)
+
+        payload = recommendations.json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["total"], len(payload["data"]))
+        self.assertIn("favorites", payload["sources"])
+        self.assertIn("search_history", payload["sources"])
+        self.assertIn("previously_viewed", payload["sources"])
+        self.assertIn("superhero", payload["seed_terms"])
+        self.assertIn("action", payload["seed_terms"])
+
+        recommended_ids = [item["imdb_id"] for item in payload["data"]]
+        self.assertNotIn("fake-cine-001", recommended_ids)
+        self.assertNotIn("fake-cine-002", recommended_ids)
+        self.assertTrue(payload["data"][0]["matched_signals"])
+
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.email == "recommendations@example.com").first()
+            self.assertIsNotNone(user)
+            view_count = db.query(MovieView).filter(MovieView.user_id == user.id).count()
+            self.assertEqual(view_count, 1)
+        finally:
+            db.close()
 
     def test_authentication_missing_invalid_expired_and_missing_user(self):
         token = self.register_and_login(email="auth@example.com")

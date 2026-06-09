@@ -15,10 +15,12 @@
 - Movie routes: backend/app/routes/movies.py
 - Favorites routes: backend/app/routes/favorites.py
 - Database models: backend/app/models/user.py, backend/app/models/favorite.py
+- Recommendation route: backend/app/routes/recommendations.py
 - Schemas/validation: backend/app/schemas/
 - Backend dependencies: backend/requirements.txt
 - Frontend env values: .env
 - Backend env sample: backend/.env.example
+- Frontend requirement: Home page must include a "Recommended For You" section that renders personalized movie cards using the recommendations API
 
 ## 3) Exact outputs you should expect
 
@@ -92,6 +94,13 @@ DELETE /favorites/{movie_id}
 Headers: Authorization: Bearer <token>
 - Status: 204
 
+### Recommendations (authorized)
+
+GET /recommendations?limit=10
+Headers: Authorization: Bearer <token>
+- Status: 200
+- Body includes: success, data[], total, seed_terms, sources
+
 ## 4) How to run and verify quickly
 
 Backend terminal:
@@ -115,7 +124,9 @@ Open:
 - Successful /login response with token
 - Successful /movies/search response
 - Successful /favorites add/list/delete responses
+- Successful /recommendations response
 - Frontend home page with movie cards visible
+- Frontend home page with "Recommended For You" movie cards visible
 - Frontend movie details modal open
 - Frontend favorites/watchlist visible
 

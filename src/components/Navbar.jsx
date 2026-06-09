@@ -1,4 +1,4 @@
-import { FiHome, FiHeart } from 'react-icons/fi';
+import { FiHome, FiHeart, FiLogIn, FiLogOut, FiUserPlus } from 'react-icons/fi';
 import cineverseLogo from '../assets/cineverse-logo.svg';
 
 export const Navbar = ({
@@ -6,6 +6,11 @@ export const Navbar = ({
   activeView = 'home',
   onHomeClick,
   onFavoritesClick,
+  isAuthenticated = false,
+  authEmail = '',
+  onLoginClick,
+  onRegisterClick,
+  onLogoutClick,
 }) => {
   return (
     <nav className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/55 backdrop-blur-2xl">
@@ -56,6 +61,37 @@ export const Navbar = ({
               </span>
             )}
           </button>
+
+          {!isAuthenticated ? (
+            <>
+              <button
+                type="button"
+                onClick={onLoginClick}
+                className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-black text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-300/20"
+              >
+                <FiLogIn />
+                <span className="hidden sm:inline">Login</span>
+              </button>
+              <button
+                type="button"
+                onClick={onRegisterClick}
+                className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/30 bg-fuchsia-300/10 px-4 py-2 text-sm font-black text-fuchsia-100 transition hover:border-fuchsia-300/50 hover:bg-fuchsia-300/20"
+              >
+                <FiUserPlus />
+                <span className="hidden sm:inline">Register</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={onLogoutClick}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-black text-theme-strong transition hover:bg-white/15"
+              title={authEmail || 'Logged in'}
+            >
+              <FiLogOut />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+          )}
         </div>
       </div>
     </nav>

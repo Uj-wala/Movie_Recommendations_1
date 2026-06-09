@@ -11,6 +11,8 @@ A visually engaging and responsive Movie Discovery application built with React,
 - **Pagination** - Navigate through movie search results efficiently
 - **Dark/Light Mode** - Theme toggle with smooth transitions and localStorage persistence
 - **Favorites Watchlist** - Save and manage favorite movies with localStorage storage
+- **Personalized Recommendations** - Suggestions based on favorites, search history, and viewed movies
+- **Recommended For You Section** - Home page section that displays personalized movie cards from the recommendations API
 
 ### Advanced Features
 - **Search Debounce** - Optimized API calls with debounced search input
@@ -67,7 +69,7 @@ src/
 
 backend/
 ├── app/
-│   ├── routes/              # Auth, movies, favorites endpoints
+│   ├── routes/              # Auth, movies, favorites, recommendations endpoints
 │   ├── models/              # SQLAlchemy models
 │   ├── schemas/             # Pydantic request/response models
 │   ├── database/            # DB engine and session handling
@@ -169,6 +171,8 @@ The app uses FastAPI endpoints (which call OMDb) to:
 Backend also supports:
 - User registration and login with JWT
 - Authenticated favorites storage in SQLite
+- Personalized recommendations from favorites, search history, and previously viewed movies
+- A `/recommendations` endpoint that powers the Home page "Recommended For You" section
 
 ## 💾 Local Storage
 
