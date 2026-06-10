@@ -21,6 +21,7 @@ from app.database.session import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.movie_view import MovieView  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
+from app.models.watchlist import Watchlist  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.schemas.history import SearchKeywordQuery  # noqa: E402
 from app.services.auth_service import create_access_token  # noqa: E402
@@ -205,6 +206,110 @@ class BackendFeatureTests(unittest.TestCase):
         self.assertEqual(data["total_favorites"], 2)
         self.assertEqual(data["total_searches"], 5)
         self.assertEqual(data["recent_searches"], ["Chrome", "Solaris", "Midnight"])
+
+    def test_watchlist_crud_uses_authenticated_user_scope(self):
+        token = self.register_and_login(email="watchlist@example.com")
+        payload = {
+            "imdb_id": "fake-cine-004",
+            "title": "Skyline Echo",
+            "year": "2026",
+            "poster_url": "https://example.com/watchlist.jpg",
+        }
+
+        created = self.client.post(
+            "/watchlist",
+            json=payload,
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(created.status_code, 201, created.text)
+        self.assertEqual(created.json()["movie_id"], payload["imdb_id"])
+        self.assertEqual(created.json()["imdb_id"], payload["imdb_id"])
+
+        duplicate = self.client.post(
+            "/watchlist",
+            json=payload,
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(duplicate.status_code, 409, duplicate.text)
+        self.assertEqual(duplicate.json()["detail"], "Movie already in watchlist")
+
+        listed = self.client.get("/watchlist", headers=self.auth_headers(token))
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(len(listed.json()), 1)
+        self.assertEqual(listed.json()[0]["title"], payload["title"])
+
+        deleted = self.client.delete(
+            f"/watchlist/{payload['imdb_id']}",
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(deleted.status_code, 204, deleted.text)
+
+        empty = self.client.get("/watchlist", headers=self.auth_headers(token))
+        self.assertEqual(empty.status_code, 200, empty.text)
+        self.assertEqual(empty.json(), [])
+
+    def test_watchlist_add_does_not_depend_on_fallback_catalog(self):
+        token = self.register_and_login(email="watchlist-nonfallback@example.com")
+        payload = {
+            "imdb_id": "tt9999999",
+            "title": "Out of Catalog",
+            "year": "2026",
+            "poster_url": "https://example.com/out-of-catalog.jpg",
+        }
+
+        created = self.client.post(
+            "/watchlist",
+            json=payload,
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(created.status_code, 201, created.text)
+        body = created.json()
+        self.assertEqual(body["movie_id"], payload["imdb_id"])
+        self.assertEqual(body["title"], payload["title"])
+        self.assertEqual(body["year"], payload["year"])
+        self.assertEqual(body["poster_url"], payload["poster_url"])
+
+    def test_watchlist_is_scoped_to_each_user(self):
+        token_a = self.register_and_login(email="watchlist-a@example.com")
+        token_b = self.register_and_login(email="watchlist-b@example.com")
+
+        movie_a = {
+            "imdb_id": "fake-cine-001",
+            "title": "Neon Horizon",
+            "year": "2026",
+            "poster_url": "https://example.com/a.jpg",
+        }
+        movie_b = {
+            "imdb_id": "fake-cine-002",
+            "title": "Midnight Solaris",
+            "year": "2025",
+            "poster_url": "https://example.com/b.jpg",
+        }
+
+        response_a = self.client.post("/watchlist", json=movie_a, headers=self.auth_headers(token_a))
+        response_b = self.client.post("/watchlist", json=movie_b, headers=self.auth_headers(token_b))
+        self.assertEqual(response_a.status_code, 201, response_a.text)
+        self.assertEqual(response_b.status_code, 201, response_b.text)
+
+        list_a = self.client.get("/watchlist", headers=self.auth_headers(token_a))
+        list_b = self.client.get("/watchlist", headers=self.auth_headers(token_b))
+        self.assertEqual([item["movie_id"] for item in list_a.json()], [movie_a["imdb_id"]])
+        self.assertEqual([item["movie_id"] for item in list_b.json()], [movie_b["imdb_id"]])
+
+        delete_b_on_a = self.client.delete(f"/watchlist/{movie_b['imdb_id']}", headers=self.auth_headers(token_a))
+        self.assertEqual(delete_b_on_a.status_code, 404, delete_b_on_a.text)
+        self.assertEqual(delete_b_on_a.json()["detail"], "Watchlist movie not found")
+
+        db = SessionLocal()
+        try:
+            user_a = db.query(User).filter(User.email == "watchlist-a@example.com").first()
+            user_b = db.query(User).filter(User.email == "watchlist-b@example.com").first()
+            self.assertIsNotNone(user_a)
+            self.assertIsNotNone(user_b)
+            self.assertEqual(db.query(Watchlist).filter(Watchlist.user_id == user_a.id).count(), 1)
+            self.assertEqual(db.query(Watchlist).filter(Watchlist.user_id == user_b.id).count(), 1)
+        finally:
+            db.close()
 
     def test_recommendations_use_favorites_history_and_viewed_movies(self):
         token = self.register_and_login(email="recommendations@example.com")

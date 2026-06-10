@@ -11,7 +11,15 @@ export const FavoritesPage = ({
   onFavoriteToggle,
   isFavorite,
   isLoading = false,
+  collectionLabel = 'Watchlist',
 }) => {
+  const isFavorites = collectionLabel === 'Favorites';
+  const heading = isFavorites ? 'Favorites' : 'Watchlist';
+  const emptyTitle = isFavorites ? 'No favorite movies added yet.' : 'No watchlist movies added yet.';
+  const emptyDescription = isFavorites
+    ? 'Add movies using the heart button or the Add to Favorites button. Your saved list will show up here.'
+    : 'Add movies using the heart button or the Add to Watchlist button. Your saved list will show up here.';
+
   return (
     <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -19,7 +27,7 @@ export const FavoritesPage = ({
           <p className="text-sm font-black uppercase tracking-[0.22em] text-fuchsia-200">
             Saved movie queue
           </p>
-          <h1 className="mt-2 text-4xl font-black text-white sm:text-5xl">Favorites</h1>
+          <h1 className="mt-2 text-4xl font-black text-white sm:text-5xl">{heading}</h1>
           <p className="mt-3 max-w-2xl text-slate-300">
             Movies you add from search, trending, popular, and local API collections appear here.
           </p>
@@ -39,8 +47,8 @@ export const FavoritesPage = ({
       ) : favorites.length === 0 ? (
         <EmptyState
           icon={<FiHeart className="h-7 w-7" />}
-          title="No favorite movies added yet."
-          description="Add movies using the heart button or the Add to Favorites button. Your saved list will show up here."
+          title={emptyTitle}
+          description={emptyDescription}
           actionLabel="Back to movies"
           actionIcon={<FiArrowLeft />}
           onAction={onBack}

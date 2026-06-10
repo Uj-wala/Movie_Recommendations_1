@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export const useLocalStorage = (key, initialValue) => {
+  const initialValueRef = useRef(initialValue);
   const [storedValue, setStoredValue] = useState(() => {
     try {
       const value = localStorage.getItem(key);
-      return value ? JSON.parse(value) : initialValue;
+      return value ? JSON.parse(value) : initialValueRef.current;
     } catch (error) {
       console.error(`Unable to read ${key} from localStorage`, error);
-      return initialValue;
+      return initialValueRef.current;
     }
   });
 
@@ -18,6 +19,16 @@ export const useLocalStorage = (key, initialValue) => {
       console.error(`Unable to save ${key} to localStorage`, error);
     }
   }, [key, storedValue]);
+
+  useEffect(() => {
+    try {
+      const value = localStorage.getItem(key);
+      setStoredValue(value ? JSON.parse(value) : initialValueRef.current);
+    } catch (error) {
+      console.error(`Unable to reload ${key} from localStorage`, error);
+      setStoredValue(initialValueRef.current);
+    }
+  }, [key]);
 
   return [storedValue, setStoredValue];
 };

@@ -1,6 +1,6 @@
 # 🎬 CineFind - Movie Discovery Web App
 
-A visually engaging and responsive Movie Discovery application built with React, Vite, Tailwind CSS, and FastAPI. Movie data is fetched through a backend API that integrates with OMDb and supports authenticated favorites.
+A visually engaging and responsive Movie Discovery application built with React, Vite, Tailwind CSS, and FastAPI. Movie data is fetched through a backend API that integrates with OMDb and supports an authenticated watchlist.
 
 ## 🌟 Features
 
@@ -69,7 +69,7 @@ src/
 
 backend/
 ├── app/
-│   ├── routes/              # Auth, movies, favorites, recommendations endpoints
+│   ├── routes/              # Auth, movies, watchlist/favorites, recommendations endpoints
 │   ├── models/              # SQLAlchemy models
 │   ├── schemas/             # Pydantic request/response models
 │   ├── database/            # DB engine and session handling
@@ -170,7 +170,7 @@ The app uses FastAPI endpoints (which call OMDb) to:
 
 Backend also supports:
 - User registration and login with JWT
-- Authenticated favorites storage in SQLite
+- Authenticated watchlist storage in SQLite
 - Personalized recommendations from favorites, search history, and previously viewed movies
 - A `/recommendations` endpoint that powers the Home page "Recommended For You" section
 

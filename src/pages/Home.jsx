@@ -96,8 +96,6 @@ export const Home = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [localFavorites, setLocalFavorites] = useLocalStorage('favoriteMovies', []);
-  const [favorites, setFavorites] = useState(() => normalizeFavoritesList(localFavorites));
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useLocalStorage('recentSearches', []);
   const [searchHistoryPage, setSearchHistoryPage] = useState(1);
@@ -111,9 +109,17 @@ export const Home = () => {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const searchRequestIdRef = useRef(0);
+  const authClearedToastShownRef = useRef(false);
   const [recommendationsRefreshKey, setRecommendationsRefreshKey] = useState(0);
   const { addToast } = useToast();
-  const activeView = location.pathname.startsWith('/favorites') ? 'favorites' : 'home';
+  const watchlistStorageKey = authEmail ? `watchlistMovies:${authEmail.toLowerCase().trim()}` : 'watchlistMovies:guest';
+  const [localFavorites, setLocalFavorites] = useLocalStorage(watchlistStorageKey, []);
+  const [favorites, setFavorites] = useState(() => normalizeFavoritesList(localFavorites));
+  const activeView = location.pathname.startsWith('/favorites')
+    ? 'favorites'
+    : location.pathname.startsWith('/watchlist')
+      ? 'watchlist'
+      : 'home';
 
   const replaceFavorites = useCallback((nextFavorites) => {
     const normalizedFavorites = normalizeFavoritesList(nextFavorites);
@@ -213,15 +219,31 @@ export const Home = () => {
 
   useEffect(() => {
     const handler = () => {
+      if (authClearedToastShownRef.current) {
+        return;
+      }
+      authClearedToastShownRef.current = true;
       setAuthToken('');
       setAuthEmail('');
-      setFavorites(normalizeFavoritesList(localFavorites));
+      setFavorites([]);
       setError('');
       addToast('Session expired. Please sign in again.', 'warning');
     };
     window.addEventListener('cineverse:auth_cleared', handler);
     return () => window.removeEventListener('cineverse:auth_cleared', handler);
-  }, [addToast, localFavorites, setAuthEmail, setAuthToken]);
+  }, [addToast, setAuthEmail, setAuthToken]);
+
+  useEffect(() => {
+    if (authToken) {
+      authClearedToastShownRef.current = false;
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    if (!authToken) {
+      setFavorites(normalizeFavoritesList(localFavorites));
+    }
+  }, [authToken, localFavorites]);
 
   const loadFavorites = useCallback(async () => {
     setFavoritesLoading(true);
@@ -418,7 +440,7 @@ export const Home = () => {
     clearAuth();
     setAuthToken('');
     setAuthEmail('');
-    setFavorites(normalizeFavoritesList(localFavorites));
+    setFavorites([]);
     setError('');
     addToast('Logged out successfully.', 'info');
   };
@@ -456,6 +478,9 @@ export const Home = () => {
         replaceFavorites(localFavorites.filter((fav) => fav.imdbID !== imdbID));
         addToast('Removed from your watchlist.', 'info');
         refreshRecommendations();
+      } else if (result.error === 'Watchlist movie not found') {
+        replaceFavorites(localFavorites.filter((fav) => fav.imdbID !== imdbID));
+        addToast('This movie was already removed from your watchlist.', 'info');
       } else {
         const message = result.error || 'Unable to remove favorite';
         setError(message);
@@ -469,6 +494,9 @@ export const Home = () => {
       replaceFavorites([result.data, ...localFavorites]);
       addToast('Added to your watchlist.', 'success');
       refreshRecommendations();
+    } else if (result.error === 'Movie already in watchlist') {
+      replaceFavorites(normalizeFavoritesList([movieToToggle, ...localFavorites]));
+      addToast('Movie is already in your watchlist.', 'info');
     } else {
       const message = result.error || 'Unable to save favorite';
       setError(message);
@@ -518,6 +546,7 @@ export const Home = () => {
         favoriteCount={favorites.length}
         activeView={activeView}
         onHomeClick={() => navigate('/')}
+        onWatchlistClick={() => navigate('/watchlist')}
         onFavoritesClick={() => navigate('/favorites')}
         isAuthenticated={isAuthenticated}
         authEmail={authEmail}
@@ -526,7 +555,7 @@ export const Home = () => {
         onLogoutClick={handleLogout}
       />
 
-      {activeView === 'favorites' ? (
+      {activeView === 'favorites' || activeView === 'watchlist' ? (
         <FavoritesPage
           favorites={favorites}
           onBack={() => navigate('/')}
@@ -534,6 +563,7 @@ export const Home = () => {
           onFavoriteToggle={handleFavoriteToggle}
           isFavorite={isFavorite}
           isLoading={favoritesLoading}
+          collectionLabel={activeView === 'favorites' ? 'Favorites' : 'Watchlist'}
         />
       ) : (
       <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
@@ -565,7 +595,7 @@ export const Home = () => {
                   Signed in as <span className="font-black text-theme-strong">{authEmail}</span>
                 </p>
               ) : (
-                <p>Favorites save locally. Login or register to save them with the backend API.</p>
+                <p>Watchlist items save locally. Login or register to save them with the backend API.</p>
               )}
             </div>
             <SearchBar
@@ -685,7 +715,7 @@ export const Home = () => {
                     </div>
                     {!isAuthenticated && (
                       <p className="max-w-xl text-sm text-theme-muted">
-                        Sign in to load personalized recommendations based on your favorites, search history, and recently viewed movies.
+                        Sign in to load personalized recommendations based on your watchlist, search history, and recently viewed movies.
                       </p>
                     )}
                   </div>
@@ -723,7 +753,7 @@ export const Home = () => {
                     </motion.div>
                   ) : isAuthenticated ? (
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-theme-muted backdrop-blur-xl">
-                      Start searching and adding favorites to get personalized recommendations.
+                      Start searching and adding movies to your watchlist to get personalized recommendations.
                     </div>
                   ) : null}
                 </section>

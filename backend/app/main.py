@@ -11,11 +11,12 @@ from app.routes.movies import router as movies_router
 from app.routes.recommendations import router as recommendations_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.reviews import router as reviews_router
-from app.models import favorite, movie_view, review, search_history, user, user_preference  # noqa: F401
+from app.routes.watchlist import router as watchlist_router
+from app.models import favorite, movie_view, review, search_history, user, user_preference, watchlist  # noqa: F401
 
 app = FastAPI(
     title="Movie Recommendation API",
-    description="FastAPI backend for movie search, favorites, search history, and dashboard statistics",
+    description="FastAPI backend for movie search, watchlist/favorites, search history, and dashboard statistics",
     version="1.0.0",
 )
 
@@ -35,6 +36,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(movies_router)
 app.include_router(favorites_router)
+app.include_router(watchlist_router)
 app.include_router(history_router)
 app.include_router(recommendations_router)
 app.include_router(dashboard_router)

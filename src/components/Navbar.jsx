@@ -5,6 +5,7 @@ export const Navbar = ({
   favoriteCount = 0,
   activeView = 'home',
   onHomeClick,
+  onWatchlistClick,
   onFavoritesClick,
   isAuthenticated = false,
   authEmail = '',
@@ -46,6 +47,24 @@ export const Navbar = ({
 
           <button
             type="button"
+            onClick={onWatchlistClick}
+            className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black shadow-[0_0_28px_rgba(217,70,239,0.14)] transition hover:border-fuchsia-200/60 hover:bg-fuchsia-300/20 ${
+              activeView === 'watchlist'
+                ? 'border-fuchsia-300/50 bg-fuchsia-300/20 text-fuchsia-700 dark:text-fuchsia-100'
+                : 'border-fuchsia-300/25 bg-fuchsia-300/10 text-fuchsia-700 dark:text-fuchsia-100'
+            }`}
+          >
+            <FiHeart className={favoriteCount > 0 ? 'fill-current' : ''} />
+            <span className="hidden sm:inline">Watchlist</span>
+            {favoriteCount > 0 && (
+              <span className="grid h-6 min-w-6 place-items-center rounded-full bg-fuchsia-300 px-2 text-xs text-slate-950">
+                {favoriteCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={onFavoritesClick}
             className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black shadow-[0_0_28px_rgba(217,70,239,0.14)] transition hover:border-fuchsia-200/60 hover:bg-fuchsia-300/20 ${
               activeView === 'favorites'
@@ -55,11 +74,6 @@ export const Navbar = ({
           >
             <FiHeart className={favoriteCount > 0 ? 'fill-current' : ''} />
             <span className="hidden sm:inline">Favorites</span>
-            {favoriteCount > 0 && (
-              <span className="grid h-6 min-w-6 place-items-center rounded-full bg-fuchsia-300 px-2 text-xs text-slate-950">
-                {favoriteCount}
-              </span>
-            )}
           </button>
 
           {!isAuthenticated ? (

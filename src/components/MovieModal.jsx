@@ -260,7 +260,7 @@ export const MovieModal = ({
                 }`}
               >
                 <FiHeart className={isFavorite ? 'fill-current' : ''} />
-                {isFavorite ? 'In Favorites' : 'Add to Favorites'}
+                {isFavorite ? 'In Watchlist' : 'Add to Watchlist'}
               </button>
 
               <div className="grid gap-4 sm:grid-cols-2">

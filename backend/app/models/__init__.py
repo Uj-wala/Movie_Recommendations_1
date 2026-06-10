@@ -4,5 +4,6 @@ from app.models.review import Review
 from app.models.user import User
 from app.models.search_history import SearchHistory
 from app.models.user_preference import UserPreference
+from app.models.watchlist import Watchlist
 
-__all__ = ["User", "Favorite", "Review", "SearchHistory", "MovieView", "UserPreference"]
+__all__ = ["User", "Favorite", "Watchlist", "Review", "SearchHistory", "MovieView", "UserPreference"]

@@ -6,6 +6,7 @@ const API_ERROR =
   'Backend API is unavailable. Ensure FastAPI server is running and properly configured.';
 const AUTH_TOKEN_KEY = 'authToken';
 const USER_EMAIL_KEY = 'authEmail';
+let authClearedNotified = false;
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -32,10 +33,13 @@ apiClient.interceptors.response.use(
         // ignore
       }
       delete apiClient.defaults.headers.common.Authorization;
-      try {
-        window.dispatchEvent(new Event('cineverse:auth_cleared'));
-      } catch {
-        // ignore in non-browser environments
+      if (!authClearedNotified) {
+        authClearedNotified = true;
+        try {
+          window.dispatchEvent(new Event('cineverse:auth_cleared'));
+        } catch {
+          // ignore in non-browser environments
+        }
       }
     }
     return Promise.reject(error);
@@ -43,12 +47,14 @@ apiClient.interceptors.response.use(
 );
 
 export const storeAuth = (token, email) => {
+  authClearedNotified = false;
   localStorage.setItem(AUTH_TOKEN_KEY, token);
   localStorage.setItem(USER_EMAIL_KEY, email);
   setAuthorizationHeader(token);
 };
 
 export const clearAuth = () => {
+  authClearedNotified = false;
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(USER_EMAIL_KEY);
   setAuthorizationHeader(null);
@@ -130,16 +136,16 @@ export const resetPassword = async (email, newPassword) => {
   }
 };
 
-export const getFavorites = async () => {
+export const getWatchlist = async () => {
   try {
-    const { data } = await apiClient.get('/favorites');
+    const { data } = await apiClient.get('/watchlist');
     return { success: true, data };
   } catch (error) {
     return { success: false, error: formatError(error) };
   }
 };
 
-export const addFavorite = async (movie) => {
+export const addToWatchlist = async (movie) => {
   try {
     const payload = {
       imdb_id: movie.imdbID,
@@ -147,21 +153,26 @@ export const addFavorite = async (movie) => {
       year: movie.Year,
       poster_url: movie.Poster,
     };
-    const { data } = await apiClient.post('/favorites', payload);
+    const { data } = await apiClient.post('/watchlist', payload);
     return { success: true, data };
   } catch (error) {
     return { success: false, error: formatError(error) };
   }
 };
 
-export const removeFavorite = async (imdbID) => {
+export const removeFromWatchlist = async (imdbID) => {
   try {
-    await apiClient.delete(`/favorites/${imdbID}`);
+    await apiClient.delete(`/watchlist/${imdbID}`);
     return { success: true };
   } catch (error) {
     return { success: false, error: formatError(error) };
   }
 };
+
+// Backward-compatible aliases for the existing UI and tests.
+export const getFavorites = getWatchlist;
+export const addFavorite = addToWatchlist;
+export const removeFavorite = removeFromWatchlist;
 
 export const getMovieReviews = async (imdbID, page = 1, pageSize = 5) => {
   try {

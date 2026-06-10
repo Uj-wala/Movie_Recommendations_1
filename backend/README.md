@@ -1,6 +1,6 @@
 # FastAPI Backend
 
-This backend powers movie search and favorites for the Movie Recommendation App.
+This backend powers movie search, watchlist management, and favorites compatibility for the Movie Recommendation App.
 
 ## Stack
 - FastAPI
@@ -26,12 +26,22 @@ This backend powers movie search and favorites for the Movie Recommendation App.
 - POST /login
 - GET /movies/search?title=batman
 - GET /movies/{imdb_id}
+- POST /watchlist (auth)
+- GET /watchlist (auth)
+- DELETE /watchlist/{movieId} (auth)
 - POST /favorites (auth)
 - GET /favorites (auth)
 - DELETE /favorites/{movie_id} (auth)
 - GET /dashboard (auth)
 - GET /history?page=1&limit=10 (auth)
 - GET /recommendations?limit=10 (auth)
+
+## Database Changes
+- `watchlist` table
+  - `id`
+  - `user_id`
+  - `movie_id`
+  - `created_at`
 
 Dashboard response:
 ```json

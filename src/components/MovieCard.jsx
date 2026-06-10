@@ -124,7 +124,7 @@ export const MovieCard = ({
                 ? 'border-fuchsia-300/50 bg-fuchsia-400/30 text-fuchsia-100 shadow-[0_0_24px_rgba(217,70,239,0.38)]'
                 : 'border-white/15 bg-slate-950/55 text-white hover:border-cyan-300/50 hover:text-cyan-100'
             }`}
-            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFavorite ? 'Remove from watchlist' : 'Add to watchlist'}
           >
             <FiHeart className={isFavorite ? 'fill-current' : ''} />
           </motion.button>
@@ -182,7 +182,7 @@ export const MovieCard = ({
             }`}
           >
             <FiHeart className={isFavorite ? 'fill-current' : ''} />
-            {isFavorite ? 'Remove Favorite' : 'Add to Favorites'}
+            {isFavorite ? 'Remove from Watchlist' : 'Add to Watchlist'}
           </button>
         </div>
       </div>
