@@ -1,11 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, RegisterRequest, ResetPasswordRequest, TokenResponse, UserResponse
-from app.services.auth_service import create_access_token, hash_password, verify_password
 from app.repositories.user_repository import UserRepository
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    ProfileResponse,
+    ProfileUpdateRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserResponse,
+)
+from app.services.auth_service import create_access_token, get_current_user, hash_password, verify_password
 
 router = APIRouter(tags=["auth"])
 
@@ -40,6 +50,52 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     user.password_hash = hash_password(payload.new_password)
+    db.commit()
+
+    return {"success": True, "message": "Password updated successfully"}
+
+
+@router.get("/profile", response_model=ProfileResponse)
+def get_profile(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/profile", response_model=ProfileResponse)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if payload.email != current_user.email:
+        existing_user = UserRepository.get_by_email(db, payload.email)
+        if existing_user and existing_user.id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
+
+        current_user.email = payload.email
+        try:
+            db.commit()
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered") from exc
+
+        db.refresh(current_user)
+
+    return current_user
+
+
+@router.patch("/profile/password")
+def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
+
+    if verify_password(payload.new_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password must be different from the current password")
+
+    current_user.password_hash = hash_password(payload.new_password)
     db.commit()
 
     return {"success": True, "message": "Password updated successfully"}

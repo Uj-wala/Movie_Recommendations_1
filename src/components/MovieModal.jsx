@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiCalendar, FiClock, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
 import { useToast } from '../context/useToast';
-import { getMovieDetails, getMovieReviews, addReview, updateReview, deleteReview } from '../services/api';
+import { getMovieDetails, getMovieReviews, getMyReview, addReview, updateReview, deleteReview } from '../services/api';
 import { SkeletonMovieModal } from './SkeletonLoader';
 
 const placeholderImage = 'https://placehold.co/600x900/07111f/67e8f9?text=No+Poster';
@@ -28,6 +28,7 @@ export const MovieModal = ({
   const [reviewsError, setReviewsError] = useState('');
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(4);
+  const [myReview, setMyReview] = useState(null);
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
@@ -78,7 +79,29 @@ export const MovieModal = ({
     };
   }, [isOpen, movie, reviewsPage, reviewsPageSize]);
 
-  const userReview = reviews.find((review) => review.user_email === authEmail);
+  useEffect(() => {
+    if (!isOpen || !movie || !isAuthenticated) {
+      setMyReview(null);
+      return undefined;
+    }
+
+    let isCurrent = true;
+
+    getMyReview(movie.imdbID).then((result) => {
+      if (!isCurrent) return;
+      if (result.success) {
+        setMyReview(result.data);
+      } else if (result.error === 'Review not found' || result.error === 'Resource not found') {
+        setMyReview(null);
+      }
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isOpen, movie, isAuthenticated]);
+
+  const userReview = myReview || reviews.find((review) => review.user_email === authEmail);
 
   useEffect(() => {
     if (userReview) {
@@ -115,6 +138,7 @@ export const MovieModal = ({
     }
 
     const updatedReview = result.data;
+    setMyReview(updatedReview);
     setReviews((currentReviews) => {
       const existingIndex = currentReviews.findIndex((item) => item.id === updatedReview.id);
       if (existingIndex !== -1) {
@@ -151,7 +175,8 @@ export const MovieModal = ({
 
     setReviews((currentReviews) => currentReviews.filter((item) => item.id !== userReview.id));
     setReviewText('');
-    setReviewRating(8);
+    setReviewRating(4);
+    setMyReview(null);
     addToast('Review deleted successfully.', 'info');
     setIsDeletingReview(false);
     // reload current page
@@ -171,6 +196,8 @@ export const MovieModal = ({
   const isLoading = movieDetails?.imdbID !== movie.imdbID;
   const posterUrl = details.Poster === 'N/A' ? placeholderImage : details.Poster;
   const ratings = Array.isArray(details.Ratings) ? details.Ratings : [];
+  const communityRating = details.communityAverageRating ?? details.averageRating;
+  const personalRating = userReview?.rating ?? details.userRating ?? null;
 
   return (
     <motion.div
@@ -186,7 +213,7 @@ export const MovieModal = ({
         exit={{ opacity: 0, y: 40, scale: 0.94 }}
         transition={{ type: 'spring', stiffness: 180, damping: 20 }}
         onClick={(event) => event.stopPropagation()}
-        className="relative grid max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-white/15 bg-slate-950/86 shadow-[0_30px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl md:grid-cols-[0.82fr_1.18fr]"
+        className="relative flex min-h-0 w-full max-w-5xl max-h-[calc(100vh-1.5rem)] overflow-hidden rounded-3xl border border-white/15 bg-slate-950/86 shadow-[0_30px_120px_rgba(0,0,0,0.65)] backdrop-blur-2xl md:h-[min(92vh,900px)] md:flex-row md:max-h-[calc(100vh-3rem)]"
       >
         <button
           type="button"
@@ -197,7 +224,7 @@ export const MovieModal = ({
           <FiX />
         </button>
 
-        <div className="relative min-h-72 overflow-hidden md:min-h-[42rem]">
+        <div className="relative h-72 shrink-0 overflow-hidden md:h-full md:w-[42%]">
           <img
             src={posterUrl}
             alt={details.Title}
@@ -209,7 +236,7 @@ export const MovieModal = ({
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/25 to-transparent md:bg-gradient-to-r" />
         </div>
 
-        <div className="overflow-y-auto p-6 sm:p-8">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6 sm:p-8">
           {isLoading ? (
             <SkeletonMovieModal />
           ) : (
@@ -234,13 +261,10 @@ export const MovieModal = ({
                       {details.Runtime}
                     </span>
                   )}
-                  {(details.averageRating != null || (details.imdbRating && details.imdbRating !== 'N/A')) && (
+                  {communityRating != null && (
                     <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-300/20 px-3 py-1.5 text-amber-200 shadow-[0_0_22px_rgba(251,191,36,0.25)]">
                       <FiStar className="fill-current text-amber-300" />
-                      {details.averageRating != null
-                        ? Number.parseFloat(details.averageRating).toFixed(1)
-                        : Number.parseFloat(details.imdbRating) / 2
-                      }/5
+                      {Number.parseFloat(communityRating).toFixed(1)}/5
                     </span>
                   )}
                 </div>
@@ -312,52 +336,70 @@ export const MovieModal = ({
                   </span>
                 </div>
 
+                {communityRating != null ? (
+                  <div className="mb-4 flex flex-wrap items-center gap-3 rounded-3xl border border-amber-300/20 bg-amber-300/10 px-4 py-3">
+                    <div className="flex items-center gap-2 text-amber-200">
+                      <FiStar className="fill-current text-amber-300" />
+                      <span className="text-sm font-black uppercase tracking-[0.2em]">Community Rating</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StarDisplay rating={communityRating} />
+                      <span className="text-sm font-black text-amber-100">
+                        {Number.parseFloat(communityRating).toFixed(1)}/5
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                    No community ratings yet.
+                  </div>
+                )}
+
                 {isAuthenticated ? (
-                  <div className="space-y-4">
-                    <textarea
-                      className="w-full rounded-3xl border border-white/10 bg-slate-950/70 p-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
-                      rows={4}
-                      value={reviewText}
-                      onChange={(event) => setReviewText(event.target.value)}
-                      placeholder="Write your review here..."
-                    />
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2 text-sm text-slate-300">
-                        <label htmlFor="review-rating" className="font-black uppercase tracking-[0.18em] text-slate-400">
-                          Rating
-                        </label>
-                        <select
-                          id="review-rating"
-                          className="rounded-3xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white focus:outline-none"
-                          value={reviewRating}
-                          onChange={(event) => setReviewRating(Number(event.target.value))}
-                        >
-                          {Array.from({ length: 5 }, (_, index) => index + 1).map((value) => (
-                            <option key={value} value={value}>
-                              {value}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={handleSaveReview}
-                          disabled={isSavingReview}
-                          className="inline-flex items-center justify-center rounded-3xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {userReview ? 'Update Review' : 'Submit Review'}
-                        </button>
-                        {userReview && (
+                  <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-4 sm:p-5">
+                    <div className="mb-4">
+                      <p className="text-sm font-black uppercase tracking-[0.22em] text-cyan-200">
+                        Submit Review
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Share your opinion and give this movie your own star rating.
+                      </p>
+                    </div>
+                    <div className="space-y-4">
+                      <textarea
+                        className="w-full rounded-3xl border border-white/10 bg-slate-950/70 p-4 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/30"
+                        rows={4}
+                        value={reviewText}
+                        onChange={(event) => setReviewText(event.target.value)}
+                        placeholder="Write your review here..."
+                      />
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-2">
+                          <label className="block text-xs font-black uppercase tracking-[0.18em] text-slate-400">
+                            Your Rating
+                          </label>
+                          <StarRatingInput rating={reviewRating} onChange={setReviewRating} />
+                        </div>
+                        <div className="flex flex-wrap gap-3">
                           <button
                             type="button"
-                            onClick={handleDeleteReview}
-                            disabled={isDeletingReview}
-                            className="inline-flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 px-5 py-3 text-sm font-black text-white transition hover:border-rose-300 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={handleSaveReview}
+                            disabled={isSavingReview}
+                            className="inline-flex items-center justify-center rounded-3xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Delete Review
+                            {userReview ? 'Update Review' : 'Submit Review'}
                           </button>
-                        )}
+                          {userReview && (
+                            <button
+                              type="button"
+                              onClick={handleDeleteReview}
+                              disabled={isDeletingReview}
+                              className="inline-flex items-center justify-center rounded-3xl border border-white/10 bg-slate-900/80 px-5 py-3 text-sm font-black text-white transition hover:border-rose-300 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              Delete Review
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -383,6 +425,19 @@ export const MovieModal = ({
                     <p className="text-sm text-slate-400">No reviews yet. Be the first to add one.</p>
                   ) : (
                     <>
+                      {personalRating != null && (
+                        <div className="mb-4 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3">
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-200">
+                            Your Rating
+                          </p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <StarDisplay rating={personalRating} />
+                            <span className="text-sm font-black text-cyan-100">
+                              {Number.parseFloat(personalRating).toFixed(1)}/5
+                            </span>
+                          </div>
+                        </div>
+                      )}
                       {reviews.map((review) => (
                         <div
                           key={review.id}
@@ -390,9 +445,16 @@ export const MovieModal = ({
                         >
                           <div className="mb-3 flex items-center justify-between gap-3 text-sm text-slate-300">
                             <span className="font-black text-white">{review.user_email}</span>
-                            <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-400">
-                              {review.rating ?? 'No rating'}
-                            </span>
+                            {review.rating != null ? (
+                              <span className="inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-amber-100">
+                                <FiStar className="fill-current text-amber-300" />
+                                {review.rating}/5
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-400">
+                                No rating
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm leading-6 text-slate-200">{review.review}</p>
                         </div>
@@ -459,6 +521,38 @@ export const MovieModal = ({
         </div>
       </motion.section>
     </motion.div>
+  );
+};
+
+const StarRatingInput = ({ rating, onChange }) => (
+  <div className="flex items-center gap-1">
+    {Array.from({ length: 5 }, (_, index) => index + 1).map((value) => {
+      const active = value <= rating;
+      return (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onChange(value)}
+          className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-slate-950/70 text-lg transition hover:border-amber-300/60 hover:bg-amber-300/10"
+          aria-label={`Set rating to ${value} star${value === 1 ? '' : 's'}`}
+        >
+          <FiStar className={active ? 'fill-current text-amber-300' : 'text-slate-500'} />
+        </button>
+      );
+    })}
+  </div>
+);
+
+const StarDisplay = ({ rating }) => {
+  const normalized = Math.max(0, Math.min(5, Number.parseFloat(rating) || 0));
+
+  return (
+    <div className="flex items-center gap-1" aria-label={`Rated ${normalized.toFixed(1)} out of 5`}>
+      {Array.from({ length: 5 }, (_, index) => index + 1).map((value) => {
+        const active = value <= Math.round(normalized);
+        return <FiStar key={value} className={active ? 'fill-current text-amber-300' : 'text-slate-600'} />;
+      })}
+    </div>
   );
 };
 

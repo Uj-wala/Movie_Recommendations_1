@@ -378,6 +378,14 @@ export const Home = () => {
     setIsAuthModalOpen(true);
   };
 
+  const handleProfileOpen = () => {
+    if (!authToken) {
+      handleAuthOpen('login');
+      return;
+    }
+    navigate('/profile');
+  };
+
   const handleAuthSubmit = async (email, password) => {
     setAuthLoading(true);
     setAuthError('');
@@ -552,6 +560,7 @@ export const Home = () => {
         authEmail={authEmail}
         onLoginClick={() => handleAuthOpen('login')}
         onRegisterClick={() => handleAuthOpen('register')}
+        onProfileClick={handleProfileOpen}
         onLogoutClick={handleLogout}
       />
 

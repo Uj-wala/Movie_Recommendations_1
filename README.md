@@ -11,6 +11,7 @@ A visually engaging and responsive Movie Discovery application built with React,
 - **Pagination** - Navigate through movie search results efficiently
 - **Dark/Light Mode** - Theme toggle with smooth transitions and localStorage persistence
 - **Favorites Watchlist** - Save and manage favorite movies with localStorage storage
+- **Profile Management** - View and update your profile, plus change your password
 - **Personalized Recommendations** - Suggestions based on favorites, search history, and viewed movies
 - **Recommended For You Section** - Home page section that displays personalized movie cards from the recommendations API
 

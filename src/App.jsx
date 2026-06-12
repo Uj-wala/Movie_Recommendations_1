@@ -1,9 +1,10 @@
-import { BrowserRouter } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 // import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import { ToastContainer } from './components/Toast.jsx';
 import { Home } from './pages/Home';
+import { ProfilePage } from './pages/ProfilePage';
 import './index.css';
 
 function App() {
@@ -13,7 +14,10 @@ function App() {
       <ThemeProvider>
         
         <ToastProvider>
-          <Home />
+          <Routes>
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="*" element={<Home />} />
+          </Routes>
           <ToastContainer />
         </ToastProvider>
       </ThemeProvider>

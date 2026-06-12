@@ -145,6 +145,36 @@ export const getWatchlist = async () => {
   }
 };
 
+export const getProfile = async () => {
+  try {
+    const { data } = await apiClient.get('/profile');
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const updateProfile = async (email) => {
+  try {
+    const { data } = await apiClient.patch('/profile', { email });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const changeProfilePassword = async (currentPassword, newPassword) => {
+  try {
+    const { data } = await apiClient.patch('/profile/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
 export const addToWatchlist = async (movie) => {
   try {
     const payload = {
@@ -179,6 +209,15 @@ export const getMovieReviews = async (imdbID, page = 1, pageSize = 5) => {
     const { data } = await apiClient.get('/reviews', {
       params: { imdb_id: imdbID, page, page_size: pageSize },
     });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const getMyReview = async (imdbID) => {
+  try {
+    const { data } = await apiClient.get(`/reviews/${imdbID}`);
     return { success: true, data };
   } catch (error) {
     return { success: false, error: formatError(error) };
@@ -336,6 +375,8 @@ export const getMovieDetails = async (imdbID) => {
         Poster: data.poster,
         imdbRating: data.imdb_rating,
         averageRating: data.average_rating,
+        communityAverageRating: data.community_average_rating,
+        userRating: data.user_rating,
         imdbVotes: data.imdb_votes,
         BoxOffice: data.box_office,
         Type: data.type,
@@ -511,6 +552,8 @@ const normalizeMovies = (movies) =>
         : movie.imdbRating && movie.imdbRating !== 'N/A'
         ? Number.parseFloat(movie.imdbRating) / 2
         : null,
+    communityAverageRating: movie.communityAverageRating ?? null,
+    userRating: movie.userRating ?? null,
   }));
 
 const normalizeMovie = (movie) => ({
@@ -522,6 +565,8 @@ const normalizeMovie = (movie) => ({
       : movie.imdbRating && movie.imdbRating !== 'N/A'
       ? Number.parseFloat(movie.imdbRating) / 2
       : null,
+  communityAverageRating: movie.communityAverageRating ?? null,
+  userRating: movie.userRating ?? null,
   Type: movie.Type || 'movie',
 });
 

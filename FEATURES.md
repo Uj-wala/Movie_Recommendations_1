@@ -48,13 +48,16 @@ Click on any movie card to open the detailed modal
 1. **Movie Poster**: Large cover image
 2. **Title & Year**: Movie name and release year
 3. **IMDb Rating**: Visual star rating (1-5 stars) + numeric score
-4. **Plot Summary**: Full synopsis of the movie
-5. **Genre**: Movie categories
-6. **Cast**: Main actors
-7. **Director**: Film director name
-8. **Runtime**: Movie duration
-9. **Language**: Original language
-10. **Release Date**: Exact release date
+4. **Average Rating**: Community average rating shown alongside IMDb data
+5. **Plot Summary**: Full synopsis of the movie
+6. **Genre**: Movie categories
+7. **Cast**: Main actors
+8. **Director**: Film director name
+9. **Runtime**: Movie duration
+10. **Language**: Original language
+11. **Release Date**: Exact release date
+12. **Community Reviews**: Submitted reviews with pagination and per-user edit/delete support
+13. **Review Form**: Authenticated users can submit or update a review and star rating
 
 ### Modal Interactions
 - **Close**: Click X button or click outside the modal

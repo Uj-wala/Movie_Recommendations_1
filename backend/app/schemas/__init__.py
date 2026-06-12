@@ -1,4 +1,13 @@
-from app.schemas.auth import LoginRequest, RegisterRequest, ResetPasswordRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    ChangePasswordRequest,
+    LoginRequest,
+    ProfileResponse,
+    ProfileUpdateRequest,
+    RegisterRequest,
+    ResetPasswordRequest,
+    TokenResponse,
+    UserResponse,
+)
 from app.schemas.dashboard import DashboardStatsData
 from app.schemas.favorite import FavoriteCreate, FavoriteResponse
 from app.schemas.error import ErrorResponse, ValidationErrorResponse
@@ -11,8 +20,11 @@ __all__ = [
     "RegisterRequest",
     "LoginRequest",
     "ResetPasswordRequest",
+    "ProfileUpdateRequest",
+    "ChangePasswordRequest",
     "TokenResponse",
     "UserResponse",
+    "ProfileResponse",
     "FavoriteCreate",
     "FavoriteResponse",
     "ErrorResponse",

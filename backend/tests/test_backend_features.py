@@ -20,6 +20,7 @@ os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "60"
 from app.database.session import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.movie_view import MovieView  # noqa: E402
+from app.models.review import Review  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
 from app.models.watchlist import Watchlist  # noqa: E402
 from app.models.user import User  # noqa: E402
@@ -231,12 +232,13 @@ class BackendFeatureTests(unittest.TestCase):
             headers=self.auth_headers(token),
         )
         self.assertEqual(duplicate.status_code, 409, duplicate.text)
-        self.assertEqual(duplicate.json()["detail"], "Movie already in watchlist")
+        self.assertEqual(duplicate.json()["message"], "Movie already in watchlist")
 
         listed = self.client.get("/watchlist", headers=self.auth_headers(token))
         self.assertEqual(listed.status_code, 200, listed.text)
         self.assertEqual(len(listed.json()), 1)
-        self.assertEqual(listed.json()[0]["title"], payload["title"])
+        self.assertEqual(listed.json()[0]["movie_id"], payload["imdb_id"])
+        self.assertTrue(listed.json()[0]["title"])
 
         deleted = self.client.delete(
             f"/watchlist/{payload['imdb_id']}",
@@ -298,7 +300,7 @@ class BackendFeatureTests(unittest.TestCase):
 
         delete_b_on_a = self.client.delete(f"/watchlist/{movie_b['imdb_id']}", headers=self.auth_headers(token_a))
         self.assertEqual(delete_b_on_a.status_code, 404, delete_b_on_a.text)
-        self.assertEqual(delete_b_on_a.json()["detail"], "Watchlist movie not found")
+        self.assertEqual(delete_b_on_a.json()["message"], "Watchlist movie not found")
 
         db = SessionLocal()
         try:
@@ -308,6 +310,88 @@ class BackendFeatureTests(unittest.TestCase):
             self.assertIsNotNone(user_b)
             self.assertEqual(db.query(Watchlist).filter(Watchlist.user_id == user_a.id).count(), 1)
             self.assertEqual(db.query(Watchlist).filter(Watchlist.user_id == user_b.id).count(), 1)
+        finally:
+            db.close()
+
+    def test_reviews_support_crud_and_average_rating(self):
+        token_a = self.register_and_login(email="review-a@example.com")
+        token_b = self.register_and_login(email="review-b@example.com")
+        movie_id = "fake-cine-001"
+
+        create_a = self.client.post(
+            "/reviews",
+            json={"imdb_id": movie_id, "review": "Strong opening and great pacing.", "rating": 4},
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(create_a.status_code, 201, create_a.text)
+        self.assertEqual(create_a.json()["average_rating"], 4.0)
+
+        duplicate_a = self.client.post(
+            "/reviews",
+            json={"imdb_id": movie_id, "review": "Another take.", "rating": 5},
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(duplicate_a.status_code, 409, duplicate_a.text)
+        self.assertEqual(duplicate_a.json()["message"], "Review already exists for this movie")
+
+        create_b = self.client.post(
+            "/reviews",
+            json={"imdb_id": movie_id, "review": "Liked the visuals.", "rating": 2},
+            headers=self.auth_headers(token_b),
+        )
+        self.assertEqual(create_b.status_code, 201, create_b.text)
+        self.assertEqual(create_b.json()["average_rating"], 3.0)
+
+        detail_a = self.client.get(f"/movies/{movie_id}", headers=self.auth_headers(token_a))
+        self.assertEqual(detail_a.status_code, 200, detail_a.text)
+        self.assertEqual(detail_a.json()["user_rating"], 4)
+        self.assertEqual(detail_a.json()["community_average_rating"], 2.0)
+        self.assertEqual(detail_a.json()["average_rating"], 2.0)
+
+        detail_b = self.client.get(f"/movies/{movie_id}", headers=self.auth_headers(token_b))
+        self.assertEqual(detail_b.status_code, 200, detail_b.text)
+        self.assertEqual(detail_b.json()["user_rating"], 2)
+        self.assertEqual(detail_b.json()["community_average_rating"], 4.0)
+        self.assertEqual(detail_b.json()["average_rating"], 4.0)
+
+        my_review = self.client.get(f"/reviews/{movie_id}", headers=self.auth_headers(token_a))
+        self.assertEqual(my_review.status_code, 200, my_review.text)
+        self.assertEqual(my_review.json()["review"], "Strong opening and great pacing.")
+        self.assertEqual(my_review.json()["average_rating"], 3.0)
+
+        listed = self.client.get("/reviews", params={"imdb_id": movie_id}, headers=self.auth_headers(token_a))
+        self.assertEqual(listed.status_code, 200, listed.text)
+        payload = listed.json()
+        self.assertEqual(payload["total"], 2)
+        self.assertEqual(payload["average_rating"], 3.0)
+        self.assertEqual(len(payload["items"]), 2)
+
+        updated = self.client.patch(
+            f"/reviews/{movie_id}",
+            json={"review": "Updated thoughts after a second watch.", "rating": 5},
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["average_rating"], 3.5)
+        self.assertEqual(updated.json()["rating"], 5)
+
+        deleted = self.client.delete(f"/reviews/{movie_id}", headers=self.auth_headers(token_b))
+        self.assertEqual(deleted.status_code, 204, deleted.text)
+
+        remaining = self.client.get("/reviews", params={"imdb_id": movie_id}, headers=self.auth_headers(token_a))
+        self.assertEqual(remaining.status_code, 200, remaining.text)
+        remaining_payload = remaining.json()
+        self.assertEqual(remaining_payload["total"], 1)
+        self.assertEqual(remaining_payload["average_rating"], 5.0)
+
+        db = SessionLocal()
+        try:
+            user_a = db.query(User).filter(User.email == "review-a@example.com").first()
+            user_b = db.query(User).filter(User.email == "review-b@example.com").first()
+            self.assertIsNotNone(user_a)
+            self.assertIsNotNone(user_b)
+            self.assertEqual(db.query(Review).filter(Review.user_id == user_a.id, Review.imdb_id == movie_id).count(), 1)
+            self.assertEqual(db.query(Review).filter(Review.user_id == user_b.id, Review.imdb_id == movie_id).count(), 0)
         finally:
             db.close()
 
@@ -383,6 +467,61 @@ class BackendFeatureTests(unittest.TestCase):
         self.assertEqual(missing_user.status_code, 404)
         self.assertEqual(missing_user.json()["message"], "User not found")
 
+    def test_profile_view_update_and_password_change(self):
+        token = self.register_and_login(email="profile@example.com", password="Password123")
+        headers = self.auth_headers(token)
+
+        profile = self.client.get("/profile", headers=headers)
+        self.assertEqual(profile.status_code, 200, profile.text)
+        self.assertEqual(profile.json()["email"], "profile@example.com")
+
+        updated = self.client.patch(
+            "/profile",
+            json={"email": "new-profile@example.com"},
+            headers=headers,
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["email"], "new-profile@example.com")
+
+        duplicate_owner = self.register_and_login(email="owner@example.com", password="Password123")
+        duplicate = self.client.patch(
+            "/profile",
+            json={"email": "owner@example.com"},
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(duplicate.status_code, 409, duplicate.text)
+        self.assertEqual(duplicate.json()["message"], "Email is already registered")
+
+        weak_password = self.client.patch(
+            "/profile/password",
+            json={"current_password": "Password123", "new_password": "short"},
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(weak_password.status_code, 400, weak_password.text)
+        self.assertEqual(weak_password.json()["errors"]["new_password"], "Password must be between 8 and 128 characters")
+
+        wrong_current = self.client.patch(
+            "/profile/password",
+            json={"current_password": "WrongPass123", "new_password": "Newpass123"},
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(wrong_current.status_code, 400, wrong_current.text)
+        self.assertEqual(wrong_current.json()["message"], "Current password is incorrect")
+
+        changed = self.client.patch(
+            "/profile/password",
+            json={"current_password": "Password123", "new_password": "Newpass123"},
+            headers=self.auth_headers(token),
+        )
+        self.assertEqual(changed.status_code, 200, changed.text)
+        self.assertEqual(changed.json()["message"], "Password updated successfully")
+
+        old_login = self.client.post("/login", json={"email": "new-profile@example.com", "password": "Password123"})
+        self.assertEqual(old_login.status_code, 401, old_login.text)
+
+        new_login = self.client.post("/login", json={"email": "new-profile@example.com", "password": "Newpass123"})
+        self.assertEqual(new_login.status_code, 200, new_login.text)
+
     def test_keyword_validation_and_type_checks(self):
         token = self.register_and_login(email="validation@example.com")
 
@@ -405,6 +544,14 @@ class BackendFeatureTests(unittest.TestCase):
 
         with self.assertRaises(ValidationError):
             SearchKeywordQuery(title=123)
+
+    def test_register_rejects_weak_passwords(self):
+        response = self.client.post(
+            "/register",
+            json={"email": "weak@example.com", "password": "weakpass"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["errors"]["password"], "Password must include at least one number")
 
 
 if __name__ == "__main__":

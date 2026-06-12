@@ -43,3 +43,5 @@ class MovieDetailResponse(BaseModel):
     total_seasons: str | None = None
     ratings: list[dict[str, Any]] = Field(default_factory=list)
     average_rating: float | None = None
+    community_average_rating: float | None = None
+    user_rating: int | None = None

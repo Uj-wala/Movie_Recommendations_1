@@ -20,9 +20,12 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
     return '';
   };
 
-  const validatePassword = (value) => {
+  const validatePassword = (value, requireStrength = false) => {
     if (!value) return 'Password is required.';
-    if (value.length < 8) return 'Password must be at least 8 characters.';
+    if (!requireStrength) return '';
+    if (value.length < 8 || value.length > 128) return 'Password must be between 8 and 128 characters.';
+    if (!/[A-Za-z]/.test(value)) return 'Password must include at least one letter.';
+    if (!/\d/.test(value)) return 'Password must include at least one number.';
     return '';
   };
 
@@ -40,6 +43,7 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
   }
 
   const isResetMode = mode === 'reset';
+  const requireStrength = mode !== 'login';
   const title = mode === 'register' ? 'Create account' : isResetMode ? 'Reset password' : 'Sign in';
   const submitLabel = mode === 'register' ? 'Register' : isResetMode ? 'Update password' : 'Login';
   const shellText = isDark ? 'text-slate-100' : 'text-[#f8fafc]';
@@ -79,7 +83,7 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
             event.preventDefault();
             const trimmedEmail = email.trim();
             const emailValidation = validateEmail(trimmedEmail);
-            const passwordValidation = validatePassword(password);
+            const passwordValidation = validatePassword(password, requireStrength);
 
             setEmailError(emailValidation);
             setPasswordError(passwordValidation);
@@ -110,13 +114,12 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
           <label className={`block text-sm font-semibold ${mutedText}`}>
             {isResetMode ? 'New password' : 'Password'}
             <input
-              type="text"
+              type="password"
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
-                setPasswordError(validatePassword(event.target.value));
+                setPasswordError(validatePassword(event.target.value, requireStrength));
               }}
-              minLength={8}
               required
               autoComplete={isResetMode ? 'new-password' : 'current-password'}
               className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"

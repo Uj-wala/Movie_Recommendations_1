@@ -1,4 +1,4 @@
-import { FiHome, FiHeart, FiLogIn, FiLogOut, FiUserPlus } from 'react-icons/fi';
+import { FiHome, FiHeart, FiLogIn, FiLogOut, FiUser, FiUserPlus } from 'react-icons/fi';
 import cineverseLogo from '../assets/cineverse-logo.svg';
 
 export const Navbar = ({
@@ -11,6 +11,7 @@ export const Navbar = ({
   authEmail = '',
   onLoginClick,
   onRegisterClick,
+  onProfileClick,
   onLogoutClick,
 }) => {
   return (
@@ -96,15 +97,26 @@ export const Navbar = ({
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={onLogoutClick}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-black text-theme-strong transition hover:bg-white/15"
-              title={authEmail || 'Logged in'}
-            >
-              <FiLogOut />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onProfileClick}
+                className="inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-black text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-300/20"
+                title={authEmail || 'View profile'}
+              >
+                <FiUser />
+                <span className="hidden sm:inline">Profile</span>
+              </button>
+              <button
+                type="button"
+                onClick={onLogoutClick}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-black text-theme-strong transition hover:bg-white/15"
+                title={authEmail || 'Logged in'}
+              >
+                <FiLogOut />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </>
           )}
         </div>
       </div>

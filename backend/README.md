@@ -24,6 +24,9 @@ This backend powers movie search, watchlist management, and favorites compatibil
 ## Main Endpoints
 - POST /register
 - POST /login
+- GET /profile (auth)
+- PATCH /profile (auth)
+- PATCH /profile/password (auth)
 - GET /movies/search?title=batman
 - GET /movies/{imdb_id}
 - POST /watchlist (auth)
@@ -109,5 +112,11 @@ Common error responses:
 { "success": false, "message": "User not found" }
 { "success": false, "message": "Unauthorized" }
 ```
+
+Password rules:
+- Minimum 8 characters
+- Maximum 128 characters
+- Must contain at least one letter
+- Must contain at least one number
 
 Swagger docs are available at `/docs`.

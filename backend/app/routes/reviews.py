@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.review import Review
@@ -9,6 +10,25 @@ from app.schemas.review import ReviewCreate, ReviewResponse, ReviewUpdate, Pagin
 from app.services.auth_service import get_current_user
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
+
+
+def _get_average_rating(db: Session, imdb_id: str) -> float | None:
+    avg = db.query(func.avg(Review.rating)).filter(Review.imdb_id == imdb_id).scalar()
+    return float(avg) if avg is not None else None
+
+
+def _build_review_response(review: Review, average_rating: float | None, user_email: str | None) -> ReviewResponse:
+    return ReviewResponse(
+        id=review.id,
+        imdb_id=review.imdb_id,
+        review=review.review,
+        rating=review.rating,
+        average_rating=average_rating,
+        user_id=review.user_id,
+        user_email=user_email or "",
+        created_at=review.created_at,
+        updated_at=review.updated_at,
+    )
 
 
 @router.get("", response_model=PaginatedReviews)
@@ -20,6 +40,7 @@ def list_reviews(
 ):
     try:
         total = db.query(func.count(Review.id)).filter(Review.imdb_id == imdb_id).scalar() or 0
+        average_rating = _get_average_rating(db, imdb_id)
 
         offset = (page - 1) * page_size
         reviews = (
@@ -39,22 +60,28 @@ def list_reviews(
             except Exception:
                 user_email = None
 
-            items.append(
-                ReviewResponse(
-                    id=r.id,
-                    imdb_id=r.imdb_id,
-                    review=r.review,
-                    rating=r.rating,
-                    user_id=r.user_id,
-                    user_email=user_email,
-                    created_at=r.created_at,
-                    updated_at=r.updated_at,
-                )
-            )
+            items.append(_build_review_response(r, average_rating, user_email))
 
-        return PaginatedReviews(page=page, page_size=page_size, total=total, items=items)
+        return PaginatedReviews(page=page, page_size=page_size, total=total, average_rating=average_rating, items=items)
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to fetch reviews") from exc
+
+
+@router.get("/{imdb_id}", response_model=ReviewResponse)
+def get_review(
+    imdb_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    review = (
+        db.query(Review)
+        .filter(Review.imdb_id == imdb_id, Review.user_id == current_user.id)
+        .first()
+    )
+    if not review:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
+
+    return _build_review_response(review, _get_average_rating(db, imdb_id), current_user.email)
 
 
 @router.post("", response_model=ReviewResponse, status_code=status.HTTP_201_CREATED)
@@ -78,19 +105,14 @@ def create_review(
         rating=payload.rating,
     )
     db.add(review)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Review already exists for this movie") from exc
     db.refresh(review)
 
-    return ReviewResponse(
-        id=review.id,
-        imdb_id=review.imdb_id,
-        review=review.review,
-        rating=review.rating,
-        user_id=review.user_id,
-        user_email=current_user.email,
-        created_at=review.created_at,
-        updated_at=review.updated_at,
-    )
+    return _build_review_response(review, _get_average_rating(db, review.imdb_id), current_user.email)
 
 
 @router.patch("/{imdb_id}", response_model=ReviewResponse)
@@ -116,16 +138,7 @@ def update_review(
     db.commit()
     db.refresh(review)
 
-    return ReviewResponse(
-        id=review.id,
-        imdb_id=review.imdb_id,
-        review=review.review,
-        rating=review.rating,
-        user_id=review.user_id,
-        user_email=current_user.email,
-        created_at=review.created_at,
-        updated_at=review.updated_at,
-    )
+    return _build_review_response(review, _get_average_rating(db, review.imdb_id), current_user.email)
 
 
 @router.delete("/{imdb_id}", status_code=status.HTTP_204_NO_CONTENT)

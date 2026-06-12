@@ -19,6 +19,25 @@ from app.services.telugu_2025_service import (
 router = APIRouter(prefix="/movies", tags=["movies"])
 
 
+def _movie_rating_snapshot(db: Session, imdb_id: str, current_user: User | None) -> tuple[float | None, float | None, int | None]:
+    try:
+        all_avg = db.query(func.avg(Review.rating)).filter(Review.imdb_id == imdb_id).scalar()
+        community_avg = db.query(func.avg(Review.rating)).filter(Review.imdb_id == imdb_id)
+        if current_user:
+            community_avg = community_avg.filter(Review.user_id != current_user.id)
+        community_value = community_avg.scalar()
+        user_rating = None
+        if current_user:
+            user_rating = db.query(Review.rating).filter(Review.imdb_id == imdb_id, Review.user_id == current_user.id).scalar()
+        return (
+            float(all_avg) if all_avg is not None else None,
+            float(community_value) if community_value is not None else None,
+            int(user_rating) if user_rating is not None else None,
+        )
+    except Exception:
+        return None, None, None
+
+
 @router.get("/search", response_model=MovieSearchResponse)
 async def movie_search(
     query: SearchKeywordQuery = Depends(),
@@ -45,15 +64,12 @@ async def movie_detail(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
 ):
+    average_all, community_average, user_rating = _movie_rating_snapshot(db, imdb_id, current_user)
     local_movie = get_telugu_2025_movie_by_id(imdb_id)
     if local_movie:
-        try:
-            avg = db.query(func.avg(Review.rating)).filter(Review.imdb_id == imdb_id).scalar()
-            average = float(avg) if avg is not None else None
-        except Exception:
-            average = None
-
-        local_movie["average_rating"] = average
+        local_movie["average_rating"] = community_average if current_user else average_all
+        local_movie["community_average_rating"] = community_average if current_user else average_all
+        local_movie["user_rating"] = user_rating
         if current_user:
             MovieViewRepository.upsert(
                 db=db,
@@ -67,15 +83,10 @@ async def movie_detail(
 
     # Fetch movie data from OMDb service (or fallback)
     data = await get_movie_by_imdb_id(imdb_id)
-
-    try:
-        avg = db.query(func.avg(Review.rating)).filter(Review.imdb_id == imdb_id).scalar()
-        average = float(avg) if avg is not None else None
-    except Exception:
-        average = None
-
-    # Attach average rating (1-5) to movie response
-    data["average_rating"] = average
+    # Attach both community and user-specific ratings to movie response
+    data["average_rating"] = community_average if current_user else average_all
+    data["community_average_rating"] = community_average if current_user else average_all
+    data["user_rating"] = user_rating
     if current_user:
         MovieViewRepository.upsert(
             db=db,
