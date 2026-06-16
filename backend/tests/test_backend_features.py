@@ -522,6 +522,42 @@ class BackendFeatureTests(unittest.TestCase):
         new_login = self.client.post("/login", json={"email": "new-profile@example.com", "password": "Newpass123"})
         self.assertEqual(new_login.status_code, 200, new_login.text)
 
+    def test_admin_email_gets_admin_access_and_admin_routes_require_it(self):
+        admin_token = self.register_and_login(email="Admin@gmail.com", password="Admin@123")
+        admin_headers = self.auth_headers(admin_token)
+
+        profile = self.client.get("/profile", headers=admin_headers)
+        self.assertEqual(profile.status_code, 200, profile.text)
+        self.assertTrue(profile.json()["is_admin"])
+
+        regular_token = self.register_and_login(email="regular@example.com", password="Password123")
+        regular_response = self.client.get("/admin/users", headers=self.auth_headers(regular_token))
+        self.assertEqual(regular_response.status_code, 403, regular_response.text)
+        self.assertEqual(regular_response.json()["message"], "Admin access required")
+
+        users = self.client.get("/admin/users", headers=admin_headers)
+        self.assertEqual(users.status_code, 200, users.text)
+        self.assertTrue(any(user["email"] == "Admin@gmail.com" and user["is_admin"] for user in users.json()))
+
+        review_creator = self.register_and_login(email="review-owner@example.com", password="Password123")
+        review_response = self.client.post(
+            "/reviews",
+            json={"imdb_id": "fake-cine-010", "review": "Admin test review.", "rating": 4},
+            headers=self.auth_headers(review_creator),
+        )
+        self.assertEqual(review_response.status_code, 201, review_response.text)
+        review_id = review_response.json()["id"]
+
+        deleted = self.client.delete(f"/admin/reviews/{review_id}", headers=admin_headers)
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual(deleted.json()["message"], "Review deleted successfully")
+
+        stats = self.client.get("/admin/stats", headers=admin_headers)
+        self.assertEqual(stats.status_code, 200, stats.text)
+        stats_payload = stats.json()
+        self.assertGreaterEqual(stats_payload["total_users"], 3)
+        self.assertGreaterEqual(stats_payload["total_reviews"], 0)
+
     def test_keyword_validation_and_type_checks(self):
         token = self.register_and_login(email="validation@example.com")
 

@@ -15,7 +15,7 @@ from app.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
-from app.services.auth_service import create_access_token, get_current_user, hash_password, verify_password
+from app.services.auth_service import create_access_token, get_current_user, hash_password, is_admin_email, sync_admin_flag, verify_password
 
 router = APIRouter(tags=["auth"])
 
@@ -27,9 +27,11 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
 
     user = User(email=payload.email, password_hash=hash_password(payload.password))
+    sync_admin_flag(user)
     db.add(user)
     db.commit()
     db.refresh(user)
+    sync_admin_flag(user)
     return user
 
 
@@ -39,6 +41,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
+    sync_admin_flag(user)
+    db.commit()
     token = create_access_token(subject=str(user.id))
     return TokenResponse(access_token=token)
 
@@ -72,6 +76,7 @@ def update_profile(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
 
         current_user.email = payload.email
+        current_user.is_admin = is_admin_email(payload.email)
         try:
             db.commit()
         except IntegrityError as exc:

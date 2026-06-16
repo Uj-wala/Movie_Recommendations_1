@@ -14,6 +14,15 @@ A visually engaging and responsive Movie Discovery application built with React,
 - **Profile Management** - View and update your profile, plus change your password
 - **Personalized Recommendations** - Suggestions based on favorites, search history, and viewed movies
 - **Recommended For You Section** - Home page section that displays personalized movie cards from the recommendations API
+- **Admin Dashboard** - Dedicated admin view for moderation and platform management
+- **User List Table** - Admin table for viewing and managing registered users
+- **Review Moderation** - Admin tools for reviewing and managing user-submitted reviews
+
+### Frontend Requirements
+- Home page must include a "Recommended For You" section that renders personalized movie cards using the recommendations API
+- Create the Admin Dashboard page
+- Implement a User List table for user management
+- Add Review Moderation functionality for managing user reviews
 
 ### Advanced Features
 - **Search Debounce** - Optimized API calls with debounced search input
@@ -174,6 +183,8 @@ Backend also supports:
 - Authenticated watchlist storage in SQLite
 - Personalized recommendations from favorites, search history, and previously viewed movies
 - A `/recommendations` endpoint that powers the Home page "Recommended For You" section
+- Admin permissions for platform moderation
+- Developed APIs for viewing users, deleting reviews, and viewing platform statistics
 
 ## 💾 Local Storage
 

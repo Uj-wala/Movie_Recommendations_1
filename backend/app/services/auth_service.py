@@ -12,6 +12,7 @@ from app.config.settings import settings
 from app.repositories.user_repository import UserRepository
 
 ALGORITHM = "HS256"
+ADMIN_EMAIL = "Admin@gmail.com"
 auth_scheme = HTTPBearer(auto_error=False)
 optional_auth_scheme = HTTPBearer(auto_error=False)
 
@@ -71,3 +72,18 @@ def get_optional_current_user(
 
     user = UserRepository.get_by_id(db, parsed_user_id)
     return user
+
+
+def is_admin_email(email: str) -> bool:
+    return email.casefold() == ADMIN_EMAIL.casefold()
+
+
+def sync_admin_flag(user: User) -> User:
+    user.is_admin = is_admin_email(user.email)
+    return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user

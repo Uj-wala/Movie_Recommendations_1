@@ -21,6 +21,9 @@
 - Frontend env values: .env
 - Backend env sample: backend/.env.example
 - Frontend requirement: Home page must include a "Recommended For You" section that renders personalized movie cards using the recommendations API
+- Frontend requirement: Create the Admin Dashboard page
+- Frontend requirement: Implement a User List table for user management
+- Frontend requirement: Add Review Moderation functionality for managing user reviews
 - Frontend requirement: Movie details modal must show rating stars and average rating for each movie
 - Frontend requirement: Movie details modal must include a review submission form for authenticated users
 - Frontend requirement: Movie details modal must display existing movie reviews and support review pagination

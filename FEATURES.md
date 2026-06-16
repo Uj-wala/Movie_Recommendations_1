@@ -229,6 +229,29 @@ Click on any movie card to open the detailed modal
 
 ---
 
+## 🛡️ Admin Features
+
+### Admin Dashboard
+- Provides a dedicated interface for platform moderation and oversight
+- Surfaces key admin actions in one place for faster navigation
+
+### User List Management
+- Displays registered users in a table format
+- Supports user management from the admin panel
+
+### Review Moderation
+- Lets admins review and manage user-submitted reviews
+- Supports moderation actions from the dashboard interface
+
+## Frontend Requirements
+
+- Create the Admin Dashboard page.
+- Implement a User List table for user management.
+- Add Review Moderation functionality for managing user reviews.
+- The frontend must keep the "Recommended For You" home section powered by the recommendations API.
+
+---
+
 ## ⚡ Performance Features
 
 ### Search Debounce

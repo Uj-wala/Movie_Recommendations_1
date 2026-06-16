@@ -210,6 +210,15 @@ export const ProfilePage = () => {
                     ? `Member since ${new Date(profile.created_at).toLocaleDateString()}`
                     : 'Manage your account details here.'}
               </p>
+              {profile?.is_admin && (
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin')}
+                  className="mt-2 inline-flex items-center gap-2 rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-100 transition hover:bg-amber-300/20"
+                >
+                  Open Admin Dashboard
+                </button>
+              )}
             </div>
 
             {error && (

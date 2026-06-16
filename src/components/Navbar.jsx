@@ -75,7 +75,7 @@ export const Navbar = ({
           >
             <FiHeart className={favoriteCount > 0 ? 'fill-current' : ''} />
             <span className="hidden sm:inline">Favorites</span>
-          </button>
+            </button>
 
           {!isAuthenticated ? (
             <>

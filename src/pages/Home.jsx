@@ -8,6 +8,7 @@ import { useToast } from '../context/useToast';
 import {
   getHomeMovieSections,
   getMovieDetails,
+  getProfile,
   getRecommendations,
   searchMovies,
   loginUser,
@@ -104,6 +105,7 @@ export const Home = () => {
   const [searchHistoryTotal, setSearchHistoryTotal] = useState(0);
   const [authToken, setAuthToken] = useLocalStorage('authToken', '');
   const [authEmail, setAuthEmail] = useLocalStorage('authEmail', '');
+  const [profile, setProfile] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authLoading, setAuthLoading] = useState(false);
@@ -119,6 +121,8 @@ export const Home = () => {
     ? 'favorites'
     : location.pathname.startsWith('/watchlist')
       ? 'watchlist'
+      : location.pathname.startsWith('/admin')
+        ? 'admin'
       : 'home';
 
   const replaceFavorites = useCallback((nextFavorites) => {
@@ -225,6 +229,7 @@ export const Home = () => {
       authClearedToastShownRef.current = true;
       setAuthToken('');
       setAuthEmail('');
+      setProfile(null);
       setFavorites([]);
       setError('');
       addToast('Session expired. Please sign in again.', 'warning');
@@ -276,10 +281,16 @@ export const Home = () => {
       setAuthorizationHeader(authToken);
       loadFavorites();
       loadSearchHistory(1);
+      getProfile().then((result) => {
+        if (result.success) {
+          setProfile(result.data);
+        }
+      });
       return;
     }
 
     setAuthorizationHeader(null);
+    setProfile(null);
     setRecommendedMovies([]);
     setRecommendedLoading(false);
     setSearchHistoryPage(1);
@@ -448,6 +459,7 @@ export const Home = () => {
     clearAuth();
     setAuthToken('');
     setAuthEmail('');
+    setProfile(null);
     setFavorites([]);
     setError('');
     addToast('Logged out successfully.', 'info');
@@ -600,9 +612,20 @@ export const Home = () => {
             </div>
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-theme-muted">
               {isAuthenticated ? (
-                <p>
-                  Signed in as <span className="font-black text-theme-strong">{authEmail}</span>
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p>
+                    Signed in as <span className="font-black text-theme-strong">{authEmail}</span>
+                  </p>
+                  {profile?.is_admin && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin')}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-100 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-900 shadow-none transition hover:bg-amber-200 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100 dark:hover:bg-amber-300/20"
+                    >
+                      Admin Dashboard
+                    </button>
+                  )}
+                </div>
               ) : (
                 <p>Watchlist items save locally. Login or register to save them with the backend API.</p>
               )}

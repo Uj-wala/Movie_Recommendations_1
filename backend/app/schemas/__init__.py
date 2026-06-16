@@ -9,6 +9,7 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.schemas.dashboard import DashboardStatsData
+from app.schemas.admin import AdminStatsResponse, AdminUserResponse
 from app.schemas.favorite import FavoriteCreate, FavoriteResponse
 from app.schemas.error import ErrorResponse, ValidationErrorResponse
 from app.schemas.history import SearchHistoryItem, SearchHistoryQuery, SearchHistoryResponse, SearchKeywordQuery
@@ -39,6 +40,8 @@ __all__ = [
     "SearchHistoryItem",
     "SearchHistoryResponse",
     "DashboardStatsData",
+    "AdminStatsResponse",
+    "AdminUserResponse",
     "ReviewCreate",
     "ReviewResponse",
     "ReviewUpdate",

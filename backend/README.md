@@ -39,6 +39,24 @@ This backend powers movie search, watchlist management, and favorites compatibil
 - GET /history?page=1&limit=10 (auth)
 - GET /recommendations?limit=10 (auth)
 
+## Admin Requirements
+The backend should also support an admin role with elevated permissions for platform moderation and monitoring.
+
+Developed APIs for:
+- Viewing users
+- Deleting reviews
+- Viewing platform statistics
+
+Suggested admin endpoints:
+- GET /admin/users
+- DELETE /admin/reviews/{review_id}
+- GET /admin/stats
+
+Recommended access rules:
+- Only authenticated users with the admin role can access these endpoints
+- Non-admin users must receive a 403 Forbidden response
+- Deleting a review should remove it from the reviews table and update any related statistics
+
 ## Database Changes
 - `watchlist` table
   - `id`
@@ -50,8 +68,9 @@ Dashboard response:
 ```json
 {
   "total_favorites": 12,
-  "total_searches": 35,
-  "recent_searches": ["Batman", "Interstellar", "Avatar"]
+  "total_reviews": 8,
+  "most_searched_movie": "Batman",
+  "most_searched_movie_count": 35
 }
 ```
 

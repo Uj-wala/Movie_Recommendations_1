@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext.jsx';
 import { ToastContainer } from './components/Toast.jsx';
 import { Home } from './pages/Home';
 import { ProfilePage } from './pages/ProfilePage';
+import { AdminDashboard } from './pages/AdminDashboard';
 import './index.css';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         
         <ToastProvider>
           <Routes>
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="*" element={<Home />} />
           </Routes>

@@ -426,13 +426,13 @@ export const MovieModal = ({
                   ) : (
                     <>
                       {personalRating != null && (
-                        <div className="mb-4 rounded-3xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3">
+                        <div className="mb-4 rounded-3xl border border-cyan-500/25 bg-cyan-200 px-4 py-3 text-cyan-950 shadow-[0_0_18px_rgba(34,211,238,0.12)] dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:text-cyan-100">
                           <p className="text-xs font-black uppercase tracking-[0.22em] text-cyan-200">
                             Your Rating
                           </p>
                           <div className="mt-2 flex items-center gap-2">
                             <StarDisplay rating={personalRating} />
-                            <span className="text-sm font-black text-cyan-100">
+                            <span className="text-sm font-black text-cyan-950 dark:text-cyan-100">
                               {Number.parseFloat(personalRating).toFixed(1)}/5
                             </span>
                           </div>
@@ -446,12 +446,12 @@ export const MovieModal = ({
                           <div className="mb-3 flex items-center justify-between gap-3 text-sm text-slate-300">
                             <span className="font-black text-white">{review.user_email}</span>
                             {review.rating != null ? (
-                              <span className="inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-amber-100">
-                                <FiStar className="fill-current text-amber-300" />
+                              <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-200 px-3 py-1 text-xs font-black uppercase tracking-[0.2em] text-amber-950 shadow-[0_0_18px_rgba(251,191,36,0.14)] dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">
+                                <FiStar className="fill-current text-amber-500 dark:text-amber-300" />
                                 {review.rating}/5
                               </span>
                             ) : (
-                              <span className="rounded-full bg-slate-900/80 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-400">
+                              <span className="rounded-full border border-slate-300 bg-slate-200 px-3 py-1 text-xs uppercase tracking-[0.2em] text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-400">
                                 No rating
                               </span>
                             )}
@@ -508,8 +508,8 @@ export const MovieModal = ({
                   )}
                   {details.averageRating != null && (
                     <div className="mt-3">
-                      <span className="inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-300/20 px-3 py-1.5 text-amber-200 shadow-[0_0_22px_rgba(251,191,36,0.25)]">
-                        <FiStar className="fill-current text-amber-300" />
+                      <span className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-200 px-3 py-1.5 text-amber-950 shadow-[0_0_22px_rgba(251,191,36,0.18)] dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">
+                        <FiStar className="fill-current text-amber-500 dark:text-amber-300" />
                         {Number.parseFloat(details.averageRating).toFixed(1)}/5
                       </span>
                     </div>
