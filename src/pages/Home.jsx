@@ -29,10 +29,11 @@ import { MovieModal } from '../components/MovieModal';
 import { Loader } from '../components/Loader';
 import { Pagination } from '../components/Pagination';
 import { Navbar } from '../components/Navbar';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { AuthModal } from '../components/AuthModal';
 import heroPoster from '../assets/hero-poster.svg';
 import { FavoritesPage } from './FavoritesPage';
+
+const HERO_MOVIE_STORAGE_KEY = 'cineverse:lastHeroMovieId';
 
 const normalizeFavorite = (favorite) => ({
   ...favorite,
@@ -78,12 +79,40 @@ const normalizeMovieCard = (movie) => ({
   averageRating: movie.averageRating ?? movie.average_rating ?? null,
 });
 
+const getRandomHeroMovie = (movies = []) => {
+  if (!movies.length) return null;
+
+  let previousHeroId = '';
+  try {
+    previousHeroId = localStorage.getItem(HERO_MOVIE_STORAGE_KEY) || '';
+  } catch {
+    previousHeroId = '';
+  }
+
+  const candidateMovies = movies.length > 1
+    ? movies.filter((movie) => movie.imdbID !== previousHeroId)
+    : movies;
+  const pool = candidateMovies.length ? candidateMovies : movies;
+  const heroMovie = pool[Math.floor(Math.random() * pool.length)];
+
+  try {
+    if (heroMovie?.imdbID) {
+      localStorage.setItem(HERO_MOVIE_STORAGE_KEY, heroMovie.imdbID);
+    }
+  } catch {
+    // Ignore storage restrictions; random selection still works for this page load.
+  }
+
+  return heroMovie;
+};
+
 export const Home = () => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [movies, setMovies] = useState([]);
   const [featuredMovies, setFeaturedMovies] = useState([]);
+  const [heroMovie, setHeroMovie] = useState(null);
   const [recommendedMovies, setRecommendedMovies] = useState([]);
   const [trendingMovies, setTrendingMovies] = useState([]);
   const [popularMovies, setPopularMovies] = useState([]);
@@ -154,7 +183,9 @@ export const Home = () => {
     getHomeMovieSections().then((result) => {
       if (!isCurrent) return;
       if (result.success) {
-        setFeaturedMovies(result.data.featured);
+        const featured = result.data.featured || [];
+        setFeaturedMovies(featured);
+        setHeroMovie(getRandomHeroMovie(featured));
         setTrendingMovies(result.data.trending);
         setPopularMovies(result.data.popular);
         setTelugu2025Movies(result.data.telugu2025 || []);
@@ -554,7 +585,7 @@ export const Home = () => {
   const hasSearchResults = movies.length > 0;
   const visibleMovies = hasSearchResults ? movies : (!isSearchActive ? featuredMovies : []);
   const isDiscoveryMode = !isSearchActive;
-  const heroMovie = featuredMovies[0];
+  const heroPosterSrc = heroMovie?.Poster && heroMovie.Poster !== 'N/A' ? heroMovie.Poster : heroPoster;
   const isAuthenticated = Boolean(authToken);
   const showRecommendedSection = isDiscoveryMode;
 
@@ -656,15 +687,15 @@ export const Home = () => {
             {heroMovie && (
               <div className="absolute inset-0 rotate-2 rounded-[2rem] border border-white/15 bg-white/10 p-4 shadow-[0_30px_100px_rgba(79,70,229,0.34)] backdrop-blur-2xl">
                 <img
-                  src={heroPoster}
+                  src={heroPosterSrc}
                   alt={heroMovie.Title}
                   className="h-full w-full rounded-[1.45rem] object-cover object-center"
                 />
-                <div className="absolute inset-4 rounded-[1.45rem] bg-gradient-to-t from-slate-950 via-slate-950/35 to-transparent" />
+                <div className="absolute inset-4 rounded-[1.45rem] bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/15" />
                 <div className="absolute bottom-10 left-10 right-10">
-                  <p className="text-sm font-bold uppercase tracking-[0.28em] text-cyan-200">Featured signal</p>
-                  <h2 className="mt-2 text-4xl font-black text-theme-strong">{heroMovie.Title}</h2>
-                  <p className="mt-2 text-theme-muted">{heroMovie.Type} / {heroMovie.Year}</p>
+                  <p className="text-sm font-bold uppercase tracking-[0.28em] text-[#67e8f9] drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">Featured signal</p>
+                  <h2 className="mt-2 text-4xl font-black text-[#f8fafc] drop-shadow-[0_3px_12px_rgba(0,0,0,0.85)]">{heroMovie.Title}</h2>
+                  <p className="mt-2 text-[#e2e8f0] drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">{heroMovie.Type} / {heroMovie.Year}</p>
                 </div>
               </div>
             )}
@@ -682,7 +713,6 @@ export const Home = () => {
                 {isDiscoveryMode ? 'Featured launch queue' : 'Matched transmissions'}
               </h2>
             </div>
-            <ThemeToggle />
           </div>
 
           <AnimatePresence mode="wait">

@@ -14,12 +14,21 @@ class AdminUserResponse(BaseModel):
     }
 
 
+class AdminUserRoleUpdateRequest(BaseModel):
+    is_admin: bool
+
+
 class AdminStatsResponse(BaseModel):
     total_users: int
     total_reviews: int
     total_favorites: int
     most_searched_movie: str | None = None
     most_searched_movie_count: int = 0
+
+
+class AdminActionResponse(BaseModel):
+    success: bool = True
+    message: str
 
 
 class AdminReviewCreateRequest(BaseModel):
@@ -53,3 +62,26 @@ class AdminReviewListResponse(BaseModel):
     limit: int
     total: int
     items: list[AdminReviewResponse]
+
+
+class AdminActivityLogResponse(BaseModel):
+    id: int
+    actor_user_id: int | None = None
+    actor_email: EmailStr | None = None
+    action: str
+    entity_type: str
+    entity_id: str | None = None
+    status: str
+    details: str | None = None
+    created_at: datetime | None = None
+
+    model_config = {
+        "from_attributes": True,
+    }
+
+
+class AdminActivityLogListResponse(BaseModel):
+    page: int
+    limit: int
+    total: int
+    items: list[AdminActivityLogResponse]

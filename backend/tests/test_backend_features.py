@@ -19,6 +19,7 @@ os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "60"
 
 from app.database.session import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.admin_activity_log import AdminActivityLog  # noqa: E402
 from app.models.movie_view import MovieView  # noqa: E402
 from app.models.review import Review  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
@@ -533,7 +534,7 @@ class BackendFeatureTests(unittest.TestCase):
         regular_token = self.register_and_login(email="regular@example.com", password="Password123")
         regular_response = self.client.get("/admin/users", headers=self.auth_headers(regular_token))
         self.assertEqual(regular_response.status_code, 403, regular_response.text)
-        self.assertEqual(regular_response.json()["message"], "Admin access required")
+        self.assertEqual(regular_response.json()["message"], "Forbidden")
 
         users = self.client.get("/admin/users", headers=admin_headers)
         self.assertEqual(users.status_code, 200, users.text)
@@ -557,6 +558,58 @@ class BackendFeatureTests(unittest.TestCase):
         stats_payload = stats.json()
         self.assertGreaterEqual(stats_payload["total_users"], 3)
         self.assertGreaterEqual(stats_payload["total_reviews"], 0)
+
+    def test_admin_can_manage_user_roles_and_delete_users_from_dashboard(self):
+        admin_token = self.register_and_login(email="Admin@gmail.com", password="Admin@123")
+        admin_headers = self.auth_headers(admin_token)
+
+        user_token = self.register_and_login(email="managed-user@example.com", password="Password123")
+        user_headers = self.auth_headers(user_token)
+
+        users = self.client.get("/admin/users", headers=admin_headers)
+        self.assertEqual(users.status_code, 200, users.text)
+        managed_user = next(user for user in users.json() if user["email"] == "managed-user@example.com")
+
+        promoted = self.client.patch(
+            f"/admin/users/{managed_user['id']}/role",
+            json={"is_admin": True},
+            headers=admin_headers,
+        )
+        self.assertEqual(promoted.status_code, 200, promoted.text)
+        self.assertTrue(promoted.json()["is_admin"])
+
+        profile_after_promotion = self.client.get("/profile", headers=user_headers)
+        self.assertEqual(profile_after_promotion.status_code, 200, profile_after_promotion.text)
+        self.assertTrue(profile_after_promotion.json()["is_admin"])
+
+        demoted = self.client.patch(
+            f"/admin/users/{managed_user['id']}/role",
+            json={"is_admin": False},
+            headers=admin_headers,
+        )
+        self.assertEqual(demoted.status_code, 200, demoted.text)
+        self.assertFalse(demoted.json()["is_admin"])
+
+        deleted = self.client.delete(f"/admin/users/{managed_user['id']}", headers=admin_headers)
+        self.assertEqual(deleted.status_code, 200, deleted.text)
+        self.assertEqual(deleted.json()["message"], "User deleted successfully")
+
+        remaining_users = self.client.get("/admin/users", headers=admin_headers)
+        self.assertEqual(remaining_users.status_code, 200, remaining_users.text)
+        self.assertFalse(any(user["email"] == "managed-user@example.com" for user in remaining_users.json()))
+
+        activity_logs = self.client.get("/admin/activity-logs", headers=admin_headers)
+        self.assertEqual(activity_logs.status_code, 200, activity_logs.text)
+        logs_payload = activity_logs.json()
+        self.assertGreaterEqual(logs_payload["total"], 3)
+        self.assertTrue(any(log["action"] == "update_user_role" for log in logs_payload["items"]))
+        self.assertTrue(any(log["action"] == "delete_user" for log in logs_payload["items"]))
+
+        db = SessionLocal()
+        try:
+            self.assertGreaterEqual(db.query(AdminActivityLog).count(), 3)
+        finally:
+            db.close()
 
     def test_keyword_validation_and_type_checks(self):
         token = self.register_and_login(email="validation@example.com")

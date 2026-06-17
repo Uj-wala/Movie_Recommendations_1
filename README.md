@@ -17,12 +17,16 @@ A visually engaging and responsive Movie Discovery application built with React,
 - **Admin Dashboard** - Dedicated admin view for moderation and platform management
 - **User List Table** - Admin table for viewing and managing registered users
 - **Review Moderation** - Admin tools for reviewing and managing user-submitted reviews
+- **Admin Audit Logs** - Recent activity feed that records privileged admin actions
 
 ### Frontend Requirements
 - Home page must include a "Recommended For You" section that renders personalized movie cards using the recommendations API
 - Create the Admin Dashboard page
 - Implement a User List table for user management
 - Add Review Moderation functionality for managing user reviews
+- Add an Activity Log view for admin audit tracking
+- Optimize API usage by loading admin data on demand instead of fetching every dataset upfront
+- Ensure large admin tables and statistics sections remain usable on mobile screens
 
 ### Advanced Features
 - **Search Debounce** - Optimized API calls with debounced search input
@@ -184,7 +188,7 @@ Backend also supports:
 - Personalized recommendations from favorites, search history, and previously viewed movies
 - A `/recommendations` endpoint that powers the Home page "Recommended For You" section
 - Admin permissions for platform moderation
-- Developed APIs for viewing users, deleting reviews, and viewing platform statistics
+- Developed APIs for viewing users, deleting reviews, viewing platform statistics, and reading admin activity logs
 
 ## 💾 Local Storage
 

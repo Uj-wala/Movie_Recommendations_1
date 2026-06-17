@@ -1,5 +1,6 @@
-import { FiHome, FiHeart, FiLogIn, FiLogOut, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
 import cineverseLogo from '../assets/cineverse-logo.svg';
+import { useTheme } from '../context/useTheme';
 
 export const Navbar = ({
   favoriteCount = 0,
@@ -14,6 +15,8 @@ export const Navbar = ({
   onProfileClick,
   onLogoutClick,
 }) => {
+  const { isDark, toggleTheme } = useTheme();
+
   return (
     <nav className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/55 backdrop-blur-2xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -115,6 +118,27 @@ export const Navbar = ({
               >
                 <FiLogOut />
                 <span className="hidden sm:inline">Logout</span>
+              </button>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={`relative inline-flex h-10 w-20 shrink-0 items-center rounded-full border p-1 transition ${
+                  isDark
+                    ? 'border-cyan-300/40 bg-[#09082f] shadow-[0_0_24px_rgba(34,211,238,0.20)]'
+                    : 'border-rose-300/60 bg-[#321536] shadow-[0_0_24px_rgba(251,113,133,0.18)]'
+                }`}
+                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                <span
+                  className={`absolute inset-y-1 grid h-8 w-8 place-items-center rounded-full text-slate-950 shadow-lg transition-transform ${
+                    isDark
+                      ? 'translate-x-10 bg-cyan-300'
+                      : 'translate-x-0 bg-gradient-to-br from-amber-300 to-rose-500'
+                  }`}
+                >
+                  {isDark ? <FiMoon className="text-base" /> : <FiSun className="text-base" />}
+                </span>
               </button>
             </>
           )}

@@ -44,18 +44,25 @@ The backend should also support an admin role with elevated permissions for plat
 
 Developed APIs for:
 - Viewing users
+- Deleting users
+- Updating user roles
 - Deleting reviews
 - Viewing platform statistics
+- Viewing admin activity logs
 
 Suggested admin endpoints:
 - GET /admin/users
+- PATCH /admin/users/{user_id}/role
+- DELETE /admin/users/{user_id}
 - DELETE /admin/reviews/{review_id}
 - GET /admin/stats
+- GET /admin/activity-logs
 
 Recommended access rules:
 - Only authenticated users with the admin role can access these endpoints
 - Non-admin users must receive a 403 Forbidden response
 - Deleting a review should remove it from the reviews table and update any related statistics
+- Admin mutations should write an audit log entry with the actor, action, target entity, and timestamp
 
 ## Database Changes
 - `watchlist` table

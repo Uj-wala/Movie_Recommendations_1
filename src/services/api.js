@@ -267,12 +267,43 @@ export const getAdminUsers = async () => {
   }
 };
 
+export const updateAdminUserRole = async (userId, isAdmin) => {
+  try {
+    const { data } = await apiClient.patch(`/admin/users/${userId}/role`, {
+      is_admin: isAdmin,
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const deleteAdminUser = async (userId) => {
+  try {
+    const { data } = await apiClient.delete(`/admin/users/${userId}`);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
 export const getAdminStats = async () => {
   try {
     const { data } = await apiClient.get('/admin/stats');
     return { success: true, data };
   } catch (error) {
     return { success: false, error: formatError(error), data: null };
+  }
+};
+
+export const getAdminActivityLogs = async (page = 1, limit = 20) => {
+  try {
+    const { data } = await apiClient.get('/admin/activity-logs', {
+      params: { page, limit },
+    });
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error), data: { page, limit, total: 0, items: [] } };
   }
 };
 

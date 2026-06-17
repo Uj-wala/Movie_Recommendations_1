@@ -76,7 +76,7 @@ def update_profile(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
 
         current_user.email = payload.email
-        current_user.is_admin = is_admin_email(payload.email)
+        sync_admin_flag(current_user)
         try:
             db.commit()
         except IntegrityError as exc:

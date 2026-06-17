@@ -13,7 +13,7 @@ from app.routes.recommendations import router as recommendations_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.reviews import router as reviews_router
 from app.routes.watchlist import router as watchlist_router
-from app.models import favorite, movie_view, review, search_history, user, user_preference, watchlist  # noqa: F401
+from app.models import admin_activity_log, favorite, movie_view, review, search_history, user, user_preference, watchlist  # noqa: F401
 from app.services.auth_service import hash_password
 
 app = FastAPI(

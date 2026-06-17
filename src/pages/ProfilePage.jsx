@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiArrowLeft, FiLock, FiMail, FiRefreshCw } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import { CinematicBackground } from '../components/CinematicBackground';
 import { Navbar } from '../components/Navbar';
 import { useToast } from '../context/useToast';
+import { useTheme } from '../context/useTheme';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { clearAuth, getProfile, updateProfile, changeProfilePassword, setAuthorizationHeader } from '../services/api';
 
@@ -43,6 +45,7 @@ const getInitials = (value) => {
 export const ProfilePage = () => {
   const navigate = useNavigate();
   const { addToast } = useToast();
+  const { isDark } = useTheme();
   const [authToken, setAuthToken] = useLocalStorage('authToken', '');
   const [authEmail, setAuthEmail] = useLocalStorage('authEmail', '');
   const [profile, setProfile] = useState(null);
@@ -141,7 +144,9 @@ export const ProfilePage = () => {
   const isAuthenticated = Boolean(authToken);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className={`min-h-screen overflow-x-hidden transition-colors duration-500 ${isDark ? 'text-white' : 'text-slate-950'}`}>
+      <CinematicBackground />
+
       <Navbar
         favoriteCount={0}
         activeView="home"

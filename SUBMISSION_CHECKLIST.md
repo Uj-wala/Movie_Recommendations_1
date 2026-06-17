@@ -24,6 +24,9 @@
 - Frontend requirement: Create the Admin Dashboard page
 - Frontend requirement: Implement a User List table for user management
 - Frontend requirement: Add Review Moderation functionality for managing user reviews
+- Frontend requirement: Add an Activity Log view for admin audit tracking
+- Frontend requirement: Load admin data on demand instead of fetching every dataset upfront
+- Frontend requirement: Keep large admin tables and statistics sections mobile responsive
 - Frontend requirement: Movie details modal must show rating stars and average rating for each movie
 - Frontend requirement: Movie details modal must include a review submission form for authenticated users
 - Frontend requirement: Movie details modal must display existing movie reviews and support review pagination

@@ -79,7 +79,7 @@ def is_admin_email(email: str) -> bool:
 
 
 def sync_admin_flag(user: User) -> User:
-    user.is_admin = is_admin_email(user.email)
+    user.is_admin = bool(user.is_admin or is_admin_email(user.email))
     return user
 
 

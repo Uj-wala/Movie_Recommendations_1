@@ -243,11 +243,18 @@ Click on any movie card to open the detailed modal
 - Lets admins review and manage user-submitted reviews
 - Supports moderation actions from the dashboard interface
 
+### Admin Audit Logs
+- Records admin role changes, user deletions, and review moderation events
+- Shows a recent activity feed in the admin dashboard for traceability
+
 ## Frontend Requirements
 
 - Create the Admin Dashboard page.
 - Implement a User List table for user management.
 - Add Review Moderation functionality for managing user reviews.
+- Add an Activity Log view for admin audit tracking.
+- Optimize API usage by loading admin data on demand instead of fetching every dataset upfront.
+- Make large admin tables and statistics sections responsive and usable on mobile devices.
 - The frontend must keep the "Recommended For You" home section powered by the recommendations API.
 
 ---
