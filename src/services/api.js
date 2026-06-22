@@ -1,9 +1,12 @@
 import axios from 'axios';
 import { fakeMovies, getFakeMovieDetails, getFakeMovies } from '../utils/fakeMovies';
 
-const API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:8000';
+const configuredApiUrl = import.meta.env.VITE_BACKEND_API_URL?.trim();
+const API_URL = configuredApiUrl || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 const API_ERROR =
   'Backend API is unavailable. Ensure FastAPI server is running and properly configured.';
+const MISSING_PRODUCTION_API_URL =
+  'Backend API URL is not configured. In Netlify, set VITE_BACKEND_API_URL to your deployed FastAPI HTTPS URL, then redeploy.';
 const AUTH_TOKEN_KEY = 'authToken';
 const USER_EMAIL_KEY = 'authEmail';
 let authClearedNotified = false;
@@ -78,6 +81,10 @@ const getResponseError = (response) => {
 };
 
 const formatError = (error) => {
+  if (!API_URL) {
+    return MISSING_PRODUCTION_API_URL;
+  }
+
   if (error?.code === 'ECONNABORTED') {
     return 'Request timed out while contacting the backend. Please confirm the backend is running and try again.';
   }
@@ -100,6 +107,10 @@ const formatError = (error) => {
   }
 
   if (error?.message) {
+    if (error.message === 'Network Error') {
+      return 'Network error while contacting the backend. Check that VITE_BACKEND_API_URL points to a live HTTPS FastAPI server and that backend CORS allows this frontend domain.';
+    }
+
     return error.message;
   }
 

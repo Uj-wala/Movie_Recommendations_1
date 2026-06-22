@@ -151,6 +151,28 @@ backend/
 npm run build
 ```
 
+### Deploy Frontend to Netlify
+Netlify only hosts the React frontend in this project. The FastAPI backend must be deployed separately first, for example on Render, Railway, Fly.io, or another Python hosting service.
+
+1. Deploy the `backend/` FastAPI app and confirm its health URL works:
+   ```text
+   https://your-api-host.example.com/
+   ```
+
+2. In Netlify, set this environment variable before building:
+   ```env
+   VITE_BACKEND_API_URL=https://your-deployed-fastapi-url
+   ```
+
+3. In the backend host, allow your Netlify site in CORS:
+   ```env
+   FRONTEND_ORIGINS=https://your-site.netlify.app
+   ```
+
+4. Redeploy both services after changing environment variables.
+
+If `VITE_BACKEND_API_URL` is missing, the deployed Netlify site cannot search movies or login because browser requests would otherwise point to `localhost`, which only exists on the visitor's computer.
+
 ### Preview Production Build
 ```bash
 npm run preview
