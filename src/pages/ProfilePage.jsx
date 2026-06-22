@@ -153,6 +153,7 @@ export const ProfilePage = () => {
         onHomeClick={() => navigate('/')}
         onWatchlistClick={() => navigate('/watchlist')}
         onFavoritesClick={() => navigate('/favorites')}
+        onCollectionsClick={() => navigate('/collections')}
         isAuthenticated={isAuthenticated}
         authEmail={authEmail}
         onLoginClick={() => navigate('/')}

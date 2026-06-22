@@ -11,11 +11,34 @@ export const MovieCard = ({
   isFavorite = false,
   compact = false,
   recommended = false,
+  actionIcon: ActionIcon = FiHeart,
+  activeActionLabel = 'Remove from Watchlist',
+  inactiveActionLabel = 'Add to Watchlist',
+  activeActionAriaLabel = 'Remove from watchlist',
+  inactiveActionAriaLabel = 'Add to watchlist',
+  actionVariant = 'watchlist',
+  showQuickAction = true,
+  secondaryActionIcon: SecondaryActionIcon,
+  secondaryActionLabel = '',
+  secondaryActionAriaLabel = '',
+  secondaryActionVariant = 'danger',
+  onSecondaryAction,
 }) => {
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
   const hasPoster = Boolean(movie.Poster) && movie.Poster !== 'N/A';
   const isPosterFallback = !hasPoster;
   const posterUrl = hasPoster ? movie.Poster : placeholderImage;
+  const actionLabel = isFavorite ? activeActionLabel : inactiveActionLabel;
+  const actionAriaLabel = isFavorite ? activeActionAriaLabel : inactiveActionAriaLabel;
+  const actionIconClassName = ActionIcon === FiHeart && isFavorite ? 'fill-current' : '';
+  const actionButtonClassName = actionVariant === 'danger'
+    ? 'border-rose-300/40 bg-rose-100/90 text-rose-800 hover:bg-rose-200/90 dark:border-rose-300/35 dark:bg-rose-300/15 dark:text-rose-100 dark:hover:bg-rose-300/25'
+    : isFavorite
+      ? 'border-fuchsia-300/50 bg-fuchsia-100/90 text-fuchsia-800 hover:bg-fuchsia-200/90 dark:border-fuchsia-300/40 dark:bg-fuchsia-300/15 dark:text-fuchsia-100 dark:hover:bg-fuchsia-300/25'
+      : 'border-cyan-300/40 bg-cyan-100/90 text-cyan-800 hover:bg-cyan-200/90 dark:border-cyan-300/30 dark:bg-cyan-300/10 dark:text-cyan-100 dark:hover:bg-cyan-300/20';
+  const secondaryActionButtonClassName = secondaryActionVariant === 'danger'
+    ? 'border-rose-300/40 bg-rose-100/90 text-rose-800 hover:bg-rose-200/90 dark:border-rose-300/35 dark:bg-rose-300/15 dark:text-rose-100 dark:hover:bg-rose-300/25'
+    : 'border-cyan-300/40 bg-cyan-100/90 text-cyan-800 hover:bg-cyan-200/90 dark:border-cyan-300/30 dark:bg-cyan-300/10 dark:text-cyan-100 dark:hover:bg-cyan-300/20';
   // Prefer averageRating (1-5) from backend; otherwise convert imdbRating (1-10) to 1-5 scale
   const rating = (movie.averageRating != null)
     ? String(movie.averageRating)
@@ -111,23 +134,25 @@ export const MovieCard = ({
             </div>
           )}
           <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-slate-950/85 to-transparent" />
-          <motion.button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onFavoriteToggle(movie.imdbID);
-            }}
-            whileTap={{ scale: 0.82 }}
-            animate={isFavorite ? { scale: [1, 1.18, 1] } : { scale: 1 }}
-            className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full border text-sm backdrop-blur-xl transition ${
-              isFavorite
-                ? 'border-fuchsia-300/50 bg-fuchsia-400/30 text-fuchsia-100 shadow-[0_0_24px_rgba(217,70,239,0.38)]'
-                : 'border-white/15 bg-slate-950/55 text-white hover:border-cyan-300/50 hover:text-cyan-100'
-            }`}
-            aria-label={isFavorite ? 'Remove from watchlist' : 'Add to watchlist'}
-          >
-            <FiHeart className={isFavorite ? 'fill-current' : ''} />
-          </motion.button>
+          {showQuickAction && (
+            <motion.button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onFavoriteToggle(movie.imdbID);
+              }}
+              whileTap={{ scale: 0.82 }}
+              animate={isFavorite ? { scale: [1, 1.18, 1] } : { scale: 1 }}
+              className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full border text-sm backdrop-blur-xl transition ${
+                isFavorite
+                  ? 'border-fuchsia-300/50 bg-fuchsia-400/30 text-fuchsia-100 shadow-[0_0_24px_rgba(217,70,239,0.38)]'
+                  : 'border-white/15 bg-slate-950/55 text-white hover:border-cyan-300/50 hover:text-cyan-100'
+              }`}
+              aria-label={actionAriaLabel}
+            >
+              <ActionIcon className={actionIconClassName} />
+            </motion.button>
+          )}
         </div>
 
         <div className="flex flex-1 flex-col p-3">
@@ -175,15 +200,27 @@ export const MovieCard = ({
               event.stopPropagation();
               onFavoriteToggle(movie.imdbID);
             }}
-            className={`mt-4 inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${
-              isFavorite
-                ? 'border-fuchsia-300/50 bg-fuchsia-100/90 text-fuchsia-800 hover:bg-fuchsia-200/90 dark:border-fuchsia-300/40 dark:bg-fuchsia-300/15 dark:text-fuchsia-100 dark:hover:bg-fuchsia-300/25'
-                : 'border-cyan-300/40 bg-cyan-100/90 text-cyan-800 hover:bg-cyan-200/90 dark:border-cyan-300/30 dark:bg-cyan-300/10 dark:text-cyan-100 dark:hover:bg-cyan-300/20'
-            }`}
+            className={`mt-4 inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${actionButtonClassName}`}
+            aria-label={actionAriaLabel}
           >
-            <FiHeart className={isFavorite ? 'fill-current' : ''} />
-            {isFavorite ? 'Remove from Watchlist' : 'Add to Watchlist'}
+            <ActionIcon className={actionIconClassName} />
+            {actionLabel}
           </button>
+
+          {onSecondaryAction && secondaryActionLabel && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSecondaryAction(movie.imdbID);
+              }}
+              className={`mt-2 inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${secondaryActionButtonClassName}`}
+              aria-label={secondaryActionAriaLabel || secondaryActionLabel}
+            >
+              {SecondaryActionIcon && <SecondaryActionIcon />}
+              {secondaryActionLabel}
+            </button>
+          )}
         </div>
       </div>
     </motion.article>

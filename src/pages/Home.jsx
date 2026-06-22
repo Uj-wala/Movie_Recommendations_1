@@ -17,6 +17,12 @@ import {
   getFavorites,
   addFavorite,
   removeFavorite,
+  getCollections,
+  createCollection,
+  updateCollection,
+  deleteCollection,
+  addMovieToCollection,
+  removeMovieFromCollection,
   setAuthorizationHeader,
   clearAuth,
   getSearchHistory,
@@ -32,6 +38,7 @@ import { Navbar } from '../components/Navbar';
 import { AuthModal } from '../components/AuthModal';
 import heroPoster from '../assets/hero-poster.svg';
 import { FavoritesPage } from './FavoritesPage';
+import { CollectionsPage } from './CollectionsPage';
 
 const HERO_MOVIE_STORAGE_KEY = 'cineverse:lastHeroMovieId';
 
@@ -72,12 +79,19 @@ const normalizeMovieCard = (movie) => ({
   imdbID: movie.imdbID || movie.imdb_id,
   Title: movie.Title || movie.title,
   Year: movie.Year || movie.year,
-  Poster: movie.Poster || movie.poster,
+  Poster: movie.Poster || movie.poster || movie.poster_url,
   Type: movie.Type || movie.type || 'movie',
   Plot: movie.Plot || movie.plot,
   imdbRating: movie.imdbRating || movie.imdb_rating,
   averageRating: movie.averageRating ?? movie.average_rating ?? null,
 });
+
+const normalizeCollections = (collections = []) =>
+  collections.map((collection) => ({
+    ...collection,
+    movie_count: collection.movie_count ?? collection.movies?.length ?? 0,
+    movies: Array.isArray(collection.movies) ? collection.movies : [],
+  }));
 
 const getRandomHeroMovie = (movies = []) => {
   if (!movies.length) return null;
@@ -127,6 +141,8 @@ export const Home = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [favoritesLoading, setFavoritesLoading] = useState(false);
+  const [collections, setCollections] = useState([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useLocalStorage('recentSearches', []);
   const [searchHistoryPage, setSearchHistoryPage] = useState(1);
   const [searchHistoryLimit] = useState(8);
@@ -150,6 +166,8 @@ export const Home = () => {
     ? 'favorites'
     : location.pathname.startsWith('/watchlist')
       ? 'watchlist'
+      : location.pathname.startsWith('/collections')
+        ? 'collections'
       : location.pathname.startsWith('/admin')
         ? 'admin'
       : 'home';
@@ -293,6 +311,24 @@ export const Home = () => {
     setFavoritesLoading(false);
   }, [replaceFavorites]);
 
+  const loadCollections = useCallback(async () => {
+    if (!authToken) {
+      setCollections([]);
+      return;
+    }
+
+    setCollectionsLoading(true);
+    const result = await getCollections();
+    if (result.success) {
+      setCollections(normalizeCollections(result.data));
+    } else {
+      const message = result.error || 'Unable to load collections';
+      setError(message);
+      addToast(message, 'error');
+    }
+    setCollectionsLoading(false);
+  }, [addToast, authToken]);
+
   const loadSearchHistory = useCallback(async (page = 1) => {
     if (!authToken) {
       return;
@@ -311,6 +347,7 @@ export const Home = () => {
     if (authToken) {
       setAuthorizationHeader(authToken);
       loadFavorites();
+      loadCollections();
       loadSearchHistory(1);
       getProfile().then((result) => {
         if (result.success) {
@@ -323,11 +360,93 @@ export const Home = () => {
     setAuthorizationHeader(null);
     setProfile(null);
     setRecommendedMovies([]);
+    setCollections([]);
+    setCollectionsLoading(false);
     setRecommendedLoading(false);
     setSearchHistoryPage(1);
     setSearchHistoryTotalPages(0);
     setSearchHistoryTotal(0);
-  }, [authToken, loadFavorites, loadSearchHistory]);
+  }, [authToken, loadCollections, loadFavorites, loadSearchHistory]);
+
+  const handleCreateCollection = useCallback(async (name, description) => {
+    if (!authToken) {
+      handleAuthOpen('login');
+      return null;
+    }
+
+    const result = await createCollection(name, description);
+    if (!result.success) {
+      addToast(result.error || 'Unable to create collection.', 'error');
+      return null;
+    }
+
+    const created = normalizeCollections([result.data])[0];
+    setCollections((current) => normalizeCollections([created, ...current]));
+    addToast('Collection created successfully.', 'success');
+    return created;
+  }, [addToast, authToken]);
+
+  const handleUpdateCollection = useCallback(async (collectionId, payload) => {
+    const result = await updateCollection(collectionId, payload);
+    if (!result.success) {
+      addToast(result.error || 'Unable to update collection.', 'error');
+      return;
+    }
+
+    const updated = normalizeCollections([result.data])[0];
+    setCollections((current) => current.map((collection) => (
+      collection.id === collectionId ? updated : collection
+    )));
+    addToast('Collection updated successfully.', 'success');
+  }, [addToast]);
+
+  const handleDeleteCollection = useCallback(async (collectionId) => {
+    const result = await deleteCollection(collectionId);
+    if (!result.success) {
+      addToast(result.error || 'Unable to delete collection.', 'error');
+      return;
+    }
+
+    setCollections((current) => current.filter((collection) => collection.id !== collectionId));
+    addToast('Collection deleted successfully.', 'info');
+  }, [addToast]);
+
+  const handleAddMovieToCollection = useCallback(async (collectionId, movie) => {
+    if (!authToken) {
+      handleAuthOpen('login');
+      return false;
+    }
+
+    const result = await addMovieToCollection(collectionId, movie);
+    if (!result.success) {
+      const isDuplicate = result.error === 'Movie already in collection';
+      addToast(result.error || 'Unable to add movie to collection.', isDuplicate ? 'info' : 'error');
+      return isDuplicate;
+    }
+
+    setCollections((current) => current.map((collection) => {
+      if (collection.id !== collectionId) return collection;
+      const movies = [result.data, ...(collection.movies || [])];
+      return { ...collection, movies, movie_count: movies.length };
+    }));
+    addToast('Movie added to collection.', 'success');
+    return true;
+  }, [addToast, authToken]);
+
+  const handleRemoveMovieFromCollection = useCallback(async (collectionId, imdbID) => {
+    const result = await removeMovieFromCollection(collectionId, imdbID);
+    if (!result.success) {
+      addToast(result.error || 'Unable to remove movie from collection.', 'error');
+      return;
+    }
+
+    setCollections((current) => current.map((collection) => {
+      if (collection.id !== collectionId) return collection;
+      const movies = (collection.movies || []).filter((movie) => movie.imdb_id !== imdbID && movie.imdbID !== imdbID);
+      return { ...collection, movies, movie_count: movies.length };
+    }));
+    addToast('Movie removed from collection.', 'info');
+  }, [addToast]);
 
   const handleSearch = useCallback(async (term, options = {}) => {
     const { remember = true } = options;
@@ -504,6 +623,10 @@ export const Home = () => {
       popularMovies.find((m) => m.imdbID === imdbID) ||
       telugu2025Movies.find((m) => m.imdbID === imdbID) ||
       recommendedMovies.find((m) => m.imdbID === imdbID) ||
+      collections
+        .flatMap((collection) => collection.movies || [])
+        .map(normalizeMovieCard)
+        .find((m) => m.imdbID === imdbID) ||
       selectedMovie ||
       favorites.find((f) => f.imdbID === imdbID);
 
@@ -562,6 +685,7 @@ export const Home = () => {
     popularMovies,
     telugu2025Movies,
     recommendedMovies,
+    collections,
     selectedMovie,
     localFavorites,
     replaceFavorites,
@@ -599,6 +723,7 @@ export const Home = () => {
         onHomeClick={() => navigate('/')}
         onWatchlistClick={() => navigate('/watchlist')}
         onFavoritesClick={() => navigate('/favorites')}
+        onCollectionsClick={() => navigate('/collections')}
         isAuthenticated={isAuthenticated}
         authEmail={authEmail}
         onLoginClick={() => handleAuthOpen('login')}
@@ -607,7 +732,20 @@ export const Home = () => {
         onLogoutClick={handleLogout}
       />
 
-      {activeView === 'favorites' || activeView === 'watchlist' ? (
+      {activeView === 'collections' ? (
+        <CollectionsPage
+          collections={collections}
+          isLoading={collectionsLoading}
+          onBack={() => navigate('/')}
+          onCreateCollection={handleCreateCollection}
+          onUpdateCollection={handleUpdateCollection}
+          onDeleteCollection={handleDeleteCollection}
+          onRemoveMovie={handleRemoveMovieFromCollection}
+          onFavoriteToggle={handleFavoriteToggle}
+          isFavorite={isFavorite}
+          onMovieClick={handleMovieClick}
+        />
+      ) : activeView === 'favorites' || activeView === 'watchlist' ? (
         <FavoritesPage
           favorites={favorites}
           onBack={() => navigate('/')}
@@ -885,6 +1023,9 @@ export const Home = () => {
             authEmail={authEmail}
             onRequireAuth={() => handleAuthOpen('login')}
             onMovieViewed={refreshRecommendations}
+            collections={collections}
+            onCreateCollection={handleCreateCollection}
+            onAddMovieToCollection={handleAddMovieToCollection}
           />
         )}
       </AnimatePresence>

@@ -11,6 +11,8 @@ A visually engaging and responsive Movie Discovery application built with React,
 - **Pagination** - Navigate through movie search results efficiently
 - **Dark/Light Mode** - Theme toggle with smooth transitions and localStorage persistence
 - **Favorites Watchlist** - Save and manage favorite movies with localStorage storage
+- **Custom Collections** - Create, view, edit, and delete personal movie collections with backend persistence
+- **Collection Movie Management** - Add movies from the detail modal and remove movies from collection pages
 - **Profile Management** - View and update your profile, plus change your password
 - **Personalized Recommendations** - Suggestions based on favorites, search history, and viewed movies
 - **Recommended For You Section** - Home page section that displays personalized movie cards from the recommendations API
@@ -27,6 +29,11 @@ A visually engaging and responsive Movie Discovery application built with React,
 - Add an Activity Log view for admin audit tracking
 - Optimize API usage by loading admin data on demand instead of fetching every dataset upfront
 - Ensure large admin tables and statistics sections remain usable on mobile screens
+- Create a new collection
+- View all collections
+- Edit collection details
+- Delete collections
+- Add and remove movies from collections
 
 ### Advanced Features
 - **Search Debounce** - Optimized API calls with debounced search input

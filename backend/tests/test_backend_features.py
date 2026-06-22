@@ -20,6 +20,7 @@ os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "60"
 from app.database.session import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.admin_activity_log import AdminActivityLog  # noqa: E402
+from app.models.collection import Collection, CollectionMovie  # noqa: E402
 from app.models.movie_view import MovieView  # noqa: E402
 from app.models.review import Review  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
@@ -311,6 +312,91 @@ class BackendFeatureTests(unittest.TestCase):
             self.assertIsNotNone(user_b)
             self.assertEqual(db.query(Watchlist).filter(Watchlist.user_id == user_a.id).count(), 1)
             self.assertEqual(db.query(Watchlist).filter(Watchlist.user_id == user_b.id).count(), 1)
+        finally:
+            db.close()
+
+    def test_collections_crud_and_movie_management_are_user_scoped(self):
+        token_a = self.register_and_login(email="collections-a@example.com")
+        token_b = self.register_and_login(email="collections-b@example.com")
+
+        created = self.client.post(
+            "/collections",
+            json={"name": "Friday Picks", "description": "Movies for the weekend"},
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(created.status_code, 201, created.text)
+        collection_id = created.json()["id"]
+        self.assertEqual(created.json()["movie_count"], 0)
+
+        duplicate = self.client.post(
+            "/collections",
+            json={"name": "Friday Picks", "description": "Duplicate"},
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(duplicate.status_code, 409, duplicate.text)
+        self.assertEqual(duplicate.json()["message"], "Collection name already exists")
+
+        movie_payload = {
+            "imdb_id": "fake-cine-001",
+            "title": "Neon Horizon",
+            "year": "2026",
+            "poster_url": "https://example.com/neon.jpg",
+            "type": "movie",
+        }
+        added_movie = self.client.post(
+            f"/collections/{collection_id}/movies",
+            json=movie_payload,
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(added_movie.status_code, 201, added_movie.text)
+        self.assertEqual(added_movie.json()["imdb_id"], movie_payload["imdb_id"])
+
+        duplicate_movie = self.client.post(
+            f"/collections/{collection_id}/movies",
+            json=movie_payload,
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(duplicate_movie.status_code, 409, duplicate_movie.text)
+        self.assertEqual(duplicate_movie.json()["message"], "Movie already in collection")
+
+        listed = self.client.get("/collections", headers=self.auth_headers(token_a))
+        self.assertEqual(listed.status_code, 200, listed.text)
+        self.assertEqual(len(listed.json()), 1)
+        self.assertEqual(listed.json()[0]["movie_count"], 1)
+        self.assertEqual(listed.json()[0]["movies"][0]["title"], movie_payload["title"])
+
+        updated = self.client.patch(
+            f"/collections/{collection_id}",
+            json={"name": "Weekend Picks", "description": ""},
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["name"], "Weekend Picks")
+        self.assertIsNone(updated.json()["description"])
+
+        other_user_delete = self.client.delete(
+            f"/collections/{collection_id}",
+            headers=self.auth_headers(token_b),
+        )
+        self.assertEqual(other_user_delete.status_code, 404, other_user_delete.text)
+        self.assertEqual(other_user_delete.json()["message"], "Collection not found")
+
+        removed_movie = self.client.delete(
+            f"/collections/{collection_id}/movies/{movie_payload['imdb_id']}",
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(removed_movie.status_code, 204, removed_movie.text)
+
+        deleted = self.client.delete(
+            f"/collections/{collection_id}",
+            headers=self.auth_headers(token_a),
+        )
+        self.assertEqual(deleted.status_code, 204, deleted.text)
+
+        db = SessionLocal()
+        try:
+            self.assertEqual(db.query(Collection).count(), 0)
+            self.assertEqual(db.query(CollectionMovie).count(), 0)
         finally:
             db.close()
 

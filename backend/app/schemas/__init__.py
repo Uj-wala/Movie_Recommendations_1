@@ -10,6 +10,13 @@ from app.schemas.auth import (
 )
 from app.schemas.dashboard import DashboardStatsData
 from app.schemas.admin import AdminActivityLogListResponse, AdminStatsResponse, AdminUserResponse
+from app.schemas.collection import (
+    CollectionCreate,
+    CollectionMovieCreate,
+    CollectionMovieResponse,
+    CollectionResponse,
+    CollectionUpdate,
+)
 from app.schemas.favorite import FavoriteCreate, FavoriteResponse
 from app.schemas.error import ErrorResponse, ValidationErrorResponse
 from app.schemas.history import SearchHistoryItem, SearchHistoryQuery, SearchHistoryResponse, SearchKeywordQuery
@@ -28,6 +35,11 @@ __all__ = [
     "ProfileResponse",
     "FavoriteCreate",
     "FavoriteResponse",
+    "CollectionCreate",
+    "CollectionUpdate",
+    "CollectionMovieCreate",
+    "CollectionMovieResponse",
+    "CollectionResponse",
     "ErrorResponse",
     "ValidationErrorResponse",
     "SearchKeywordQuery",

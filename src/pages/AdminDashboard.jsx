@@ -462,6 +462,7 @@ export const AdminDashboard = () => {
         onHomeClick={() => navigate('/')}
         onWatchlistClick={() => navigate('/watchlist')}
         onFavoritesClick={() => navigate('/favorites')}
+        onCollectionsClick={() => navigate('/collections')}
         isAuthenticated={isAuthenticated}
         authEmail={authEmail}
         onLoginClick={() => navigate('/')}

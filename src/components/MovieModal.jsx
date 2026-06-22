@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiCalendar, FiClock, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiFolderPlus, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
 import { useToast } from '../context/useToast';
 import { getMovieDetails, getMovieReviews, getMyReview, addReview, updateReview, deleteReview } from '../services/api';
 import { SkeletonMovieModal } from './SkeletonLoader';
@@ -18,6 +18,9 @@ export const MovieModal = ({
   authEmail,
   onRequireAuth,
   onMovieViewed,
+  collections = [],
+  onCreateCollection,
+  onAddMovieToCollection,
 }) => {
   const { addToast } = useToast();
   const [movieDetails, setMovieDetails] = useState(null);
@@ -32,6 +35,8 @@ export const MovieModal = ({
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
   const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  const [newCollectionName, setNewCollectionName] = useState('');
 
   useEffect(() => {
     if (!isOpen || !movie) return undefined;
@@ -190,6 +195,42 @@ export const MovieModal = ({
     if (md.success) setMovieDetails(md.data);
   };
 
+  const handleAddToCollection = async () => {
+    if (!isAuthenticated) {
+      onRequireAuth?.();
+      return;
+    }
+
+    let collectionId = selectedCollectionId;
+    if (collectionId === 'new') {
+      if (!newCollectionName.trim()) {
+        addToast('Enter a collection name first.', 'error');
+        return;
+      }
+      const created = await onCreateCollection?.(newCollectionName.trim(), '');
+      if (!created) return;
+      collectionId = String(created.id);
+      setSelectedCollectionId(collectionId);
+      setNewCollectionName('');
+    }
+
+    if (!collectionId) {
+      addToast('Choose a collection first.', 'error');
+      return;
+    }
+
+    const movieForCollection = {
+      ...details,
+      imdbID: details.imdbID || movie.imdbID,
+      Title: details.Title || movie.Title,
+      Year: details.Year || movie.Year,
+      Poster: details.Poster || movie.Poster || 'N/A',
+      Type: details.Type || movie.Type || 'movie',
+    };
+
+    await onAddMovieToCollection?.(Number(collectionId), movieForCollection);
+  };
+
   if (!isOpen) return null;
 
   const details = movieDetails || movie;
@@ -286,6 +327,56 @@ export const MovieModal = ({
                 <FiHeart className={isFavorite ? 'fill-current' : ''} />
                 {isFavorite ? 'In Watchlist' : 'Add to Watchlist'}
               </button>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.2em] text-cyan-200">
+                  <FiFolderPlus />
+                  Add to Collection
+                </div>
+                {isAuthenticated ? (
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <div className="space-y-3">
+                      <select
+                        value={selectedCollectionId}
+                        onChange={(event) => setSelectedCollectionId(event.target.value)}
+                        className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white focus:border-cyan-300 focus:outline-none"
+                      >
+                        <option value="">Choose collection</option>
+                        {collections.map((collection) => (
+                          <option key={collection.id} value={collection.id}>
+                            {collection.name}
+                          </option>
+                        ))}
+                        <option value="new">Create new collection</option>
+                      </select>
+                      {selectedCollectionId === 'new' && (
+                        <input
+                          value={newCollectionName}
+                          onChange={(event) => setNewCollectionName(event.target.value)}
+                          className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-300 focus:outline-none"
+                          placeholder="New collection name"
+                        />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddToCollection}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+                    >
+                      <FiFolderPlus />
+                      Add
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onRequireAuth?.()}
+                    className="inline-flex items-center justify-center rounded-2xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+                  >
+                    Login to use collections
+                  </button>
+                )}
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <InfoBlock label="Genre" value={details.Genre} />

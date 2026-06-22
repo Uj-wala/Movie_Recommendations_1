@@ -1,4 +1,4 @@
-import { FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiFolder, FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
 import cineverseLogo from '../assets/cineverse-logo.svg';
 import { useTheme } from '../context/useTheme';
 
@@ -8,6 +8,7 @@ export const Navbar = ({
   onHomeClick,
   onWatchlistClick,
   onFavoritesClick,
+  onCollectionsClick,
   isAuthenticated = false,
   authEmail = '',
   onLoginClick,
@@ -79,6 +80,19 @@ export const Navbar = ({
             <FiHeart className={favoriteCount > 0 ? 'fill-current' : ''} />
             <span className="hidden sm:inline">Favorites</span>
             </button>
+
+          <button
+            type="button"
+            onClick={onCollectionsClick}
+            className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black shadow-[0_0_28px_rgba(34,211,238,0.14)] transition hover:border-cyan-200/60 hover:bg-cyan-300/20 ${
+              activeView === 'collections'
+                ? 'border-cyan-300/50 bg-cyan-300/20 text-cyan-700 dark:text-cyan-100'
+                : 'border-cyan-300/25 bg-cyan-300/10 text-cyan-700 dark:text-cyan-100'
+            }`}
+          >
+            <FiFolder />
+            <span className="hidden sm:inline">Collections</span>
+          </button>
 
           {!isAuthenticated ? (
             <>

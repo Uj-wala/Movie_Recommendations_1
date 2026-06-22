@@ -5,7 +5,8 @@
 2. [Movie Details](#movie-details)
 3. [Theme Customization](#theme-customization)
 4. [Favorites Management](#favorites-management)
-5. [Component Overview](#component-overview)
+5. [Collections Management](#collections-management)
+6. [Component Overview](#component-overview)
 
 ---
 
@@ -122,6 +123,24 @@ Click on any movie card to open the detailed modal
 - Badge on navbar shows count
 - Updates in real-time
 - Only shows when you have favorites
+
+---
+
+## Collections Management
+
+### Required Features
+- Create a new collection
+- View all collections
+- Edit collection details
+- Delete collections
+- Add movies to collections from the movie detail modal
+- Remove movies from collections on the Collections page
+
+### How It Works
+- Click **Collections** in the navbar to open the collection manager.
+- Use the New Collection form to save a named collection with an optional description.
+- Select a collection to view its movies, edit its name/description, or delete it.
+- Open any movie detail modal and use **Add to Collection** to save that movie into an existing or new collection.
 
 ---
 

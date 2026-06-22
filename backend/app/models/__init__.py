@@ -1,4 +1,5 @@
 from app.models.favorite import Favorite
+from app.models.collection import Collection, CollectionMovie
 from app.models.admin_activity_log import AdminActivityLog
 from app.models.movie_view import MovieView
 from app.models.review import Review
@@ -10,6 +11,8 @@ from app.models.watchlist import Watchlist
 __all__ = [
     "User",
     "Favorite",
+    "Collection",
+    "CollectionMovie",
     "Watchlist",
     "Review",
     "SearchHistory",
