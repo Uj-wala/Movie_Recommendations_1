@@ -74,6 +74,11 @@ const toStoredFavorite = (movie) => ({
   averageRating: movie.averageRating,
 });
 
+const isUnauthorizedError = (message = '') => {
+  const normalizedMessage = message.toLowerCase();
+  return normalizedMessage.includes('unauthorized') || normalizedMessage.includes('login again');
+};
+
 const normalizeMovieCard = (movie) => ({
   ...movie,
   imdbID: movie.imdbID || movie.imdb_id,
@@ -671,6 +676,13 @@ export const Home = () => {
     } else if (result.error === 'Movie already in watchlist') {
       replaceFavorites(normalizeFavoritesList([movieToToggle, ...localFavorites]));
       addToast('Movie is already in your watchlist.', 'info');
+    } else if (isUnauthorizedError(result.error)) {
+      clearAuth();
+      setAuthToken('');
+      setAuthEmail('');
+      setProfile(null);
+      replaceFavorites([toStoredFavorite(movieToToggle), ...localFavorites]);
+      addToast('Session expired. Added locally. Sign in again to save it to your account.', 'warning');
     } else {
       const message = result.error || 'Unable to save favorite';
       setError(message);
@@ -691,6 +703,8 @@ export const Home = () => {
     replaceFavorites,
     addToast,
     refreshRecommendations,
+    setAuthEmail,
+    setAuthToken,
   ]);
 
   const isFavorite = (imdbID) => favorites.some((m) => m.imdbID === imdbID);
