@@ -79,7 +79,10 @@ class CollectionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     movie_count: int
-    movies: list[CollectionMovieResponse] = []
+    followers_count: int = 0
+    followed_by_me: bool = False
+    owner_email: str | None = None
+    movies: list[CollectionMovieResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True

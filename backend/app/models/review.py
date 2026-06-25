@@ -17,3 +17,5 @@ class Review(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="reviews")
+    likes = relationship("ReviewLike", back_populates="review", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="review", cascade="all, delete-orphan")

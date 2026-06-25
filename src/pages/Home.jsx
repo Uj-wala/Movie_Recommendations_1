@@ -18,11 +18,16 @@ import {
   addFavorite,
   removeFavorite,
   getCollections,
+  getDiscoverCollections,
   createCollection,
   updateCollection,
   deleteCollection,
+  followCollection,
+  unfollowCollection,
   addMovieToCollection,
   removeMovieFromCollection,
+  getNotifications,
+  markNotificationsRead,
   setAuthorizationHeader,
   clearAuth,
   getSearchHistory,
@@ -36,6 +41,7 @@ import { Loader } from '../components/Loader';
 import { Pagination } from '../components/Pagination';
 import { Navbar } from '../components/Navbar';
 import { AuthModal } from '../components/AuthModal';
+import { NotificationPanel } from '../components/NotificationPanel';
 import heroPoster from '../assets/hero-poster.svg';
 import { FavoritesPage } from './FavoritesPage';
 import { CollectionsPage } from './CollectionsPage';
@@ -147,7 +153,11 @@ export const Home = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [collections, setCollections] = useState([]);
+  const [discoverCollections, setDiscoverCollections] = useState([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useLocalStorage('recentSearches', []);
   const [searchHistoryPage, setSearchHistoryPage] = useState(1);
   const [searchHistoryLimit] = useState(8);
@@ -224,58 +234,6 @@ export const Home = () => {
   }, []);
 
   useEffect(() => {
-    let isCurrent = true;
-
-    if (!authToken) {
-      setRecommendedMovies([]);
-      setRecommendedLoading(false);
-      return () => {
-        isCurrent = false;
-      };
-    }
-
-    setRecommendedLoading(true);
-    getRecommendations(8).then((result) => {
-      if (!isCurrent) return;
-
-      if (!result.success || !result.data.length) {
-        setRecommendedMovies([]);
-        setRecommendedLoading(false);
-        return;
-      }
-
-      Promise.all(
-        result.data.map(async (movie) => {
-          try {
-            const details = await getMovieDetails(movie.imdbID);
-            if (details.success && details.data) {
-              return normalizeMovieCard({
-                ...movie,
-                ...details.data,
-                score: movie.score,
-                matchedSignals: movie.matchedSignals,
-                reason: movie.reason,
-              });
-            }
-          } catch {
-            // Fall back to the recommendation payload if the detail lookup fails.
-          }
-
-          return normalizeMovieCard(movie);
-        })
-      ).then((enrichedMovies) => {
-        if (!isCurrent) return;
-        setRecommendedMovies(enrichedMovies);
-        setRecommendedLoading(false);
-      });
-    });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [authToken, recommendationsRefreshKey]);
-
-  useEffect(() => {
     const handler = () => {
       if (authClearedToastShownRef.current) {
         return;
@@ -334,6 +292,85 @@ export const Home = () => {
     setCollectionsLoading(false);
   }, [addToast, authToken]);
 
+  const loadDiscoverCollections = useCallback(async () => {
+    if (!authToken) {
+      setDiscoverCollections([]);
+      return;
+    }
+
+    const result = await getDiscoverCollections();
+    if (result.success) {
+      setDiscoverCollections(normalizeCollections(result.data));
+    }
+  }, [authToken]);
+
+  const loadNotifications = useCallback(async () => {
+    if (!authToken) {
+      setNotifications([]);
+      setUnreadNotifications(0);
+      return;
+    }
+
+    const result = await getNotifications();
+    if (result.success) {
+      setNotifications(result.data.items || []);
+      setUnreadNotifications(result.data.unread_count || 0);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (!authToken) {
+      setRecommendedMovies([]);
+      setRecommendedLoading(false);
+      return () => {
+        isCurrent = false;
+      };
+    }
+
+    setRecommendedLoading(true);
+    getRecommendations(8).then((result) => {
+      if (!isCurrent) return;
+      loadNotifications();
+
+      if (!result.success || !result.data.length) {
+        setRecommendedMovies([]);
+        setRecommendedLoading(false);
+        return;
+      }
+
+      Promise.all(
+        result.data.map(async (movie) => {
+          try {
+            const details = await getMovieDetails(movie.imdbID);
+            if (details.success && details.data) {
+              return normalizeMovieCard({
+                ...movie,
+                ...details.data,
+                score: movie.score,
+                matchedSignals: movie.matchedSignals,
+                reason: movie.reason,
+              });
+            }
+          } catch {
+            // Fall back to the recommendation payload if the detail lookup fails.
+          }
+
+          return normalizeMovieCard(movie);
+        })
+      ).then((enrichedMovies) => {
+        if (!isCurrent) return;
+        setRecommendedMovies(enrichedMovies);
+        setRecommendedLoading(false);
+      });
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [authToken, loadNotifications, recommendationsRefreshKey]);
+
   const loadSearchHistory = useCallback(async (page = 1) => {
     if (!authToken) {
       return;
@@ -353,6 +390,8 @@ export const Home = () => {
       setAuthorizationHeader(authToken);
       loadFavorites();
       loadCollections();
+      loadDiscoverCollections();
+      loadNotifications();
       loadSearchHistory(1);
       getProfile().then((result) => {
         if (result.success) {
@@ -366,12 +405,16 @@ export const Home = () => {
     setProfile(null);
     setRecommendedMovies([]);
     setCollections([]);
+    setDiscoverCollections([]);
+    setNotifications([]);
+    setUnreadNotifications(0);
+    setIsNotificationPanelOpen(false);
     setCollectionsLoading(false);
     setRecommendedLoading(false);
     setSearchHistoryPage(1);
     setSearchHistoryTotalPages(0);
     setSearchHistoryTotal(0);
-  }, [authToken, loadCollections, loadFavorites, loadSearchHistory]);
+  }, [authToken, loadCollections, loadDiscoverCollections, loadFavorites, loadNotifications, loadSearchHistory]);
 
   const handleCreateCollection = useCallback(async (name, description) => {
     if (!authToken) {
@@ -415,6 +458,54 @@ export const Home = () => {
     setCollections((current) => current.filter((collection) => collection.id !== collectionId));
     addToast('Collection deleted successfully.', 'info');
   }, [addToast]);
+
+  const handleFollowCollection = useCallback(async (collectionId, isFollowed) => {
+    if (!authToken) {
+      handleAuthOpen('login');
+      return;
+    }
+
+    const result = isFollowed
+      ? await unfollowCollection(collectionId)
+      : await followCollection(collectionId);
+
+    if (!result.success) {
+      addToast(result.error || 'Unable to update collection follow.', 'error');
+      return;
+    }
+
+    setDiscoverCollections((current) => current.map((collection) => (
+      collection.id === collectionId ? normalizeCollections([result.data])[0] : collection
+    )));
+    addToast(isFollowed ? 'Collection unfollowed.' : 'Collection followed.', isFollowed ? 'info' : 'success');
+    loadNotifications();
+  }, [addToast, authToken, loadNotifications]);
+
+  const handleMarkNotificationRead = useCallback(async (notificationId) => {
+    const result = await markNotificationsRead([notificationId]);
+    if (result.success) {
+      setNotifications(result.data.items || []);
+      setUnreadNotifications(result.data.unread_count || 0);
+    }
+  }, []);
+
+  const handleMarkAllNotificationsRead = useCallback(async () => {
+    const result = await markNotificationsRead();
+    if (result.success) {
+      setNotifications(result.data.items || []);
+      setUnreadNotifications(result.data.unread_count || 0);
+    }
+  }, []);
+
+  const handleNotificationsToggle = useCallback(() => {
+    setIsNotificationPanelOpen((isOpen) => {
+      const nextIsOpen = !isOpen;
+      if (nextIsOpen) {
+        loadNotifications();
+      }
+      return nextIsOpen;
+    });
+  }, [loadNotifications]);
 
   const handleAddMovieToCollection = useCallback(async (collectionId, movie) => {
     if (!authToken) {
@@ -744,6 +835,18 @@ export const Home = () => {
         onRegisterClick={() => handleAuthOpen('register')}
         onProfileClick={handleProfileOpen}
         onLogoutClick={handleLogout}
+        unreadNotifications={unreadNotifications}
+        isNotificationsOpen={isNotificationPanelOpen}
+        onNotificationsClick={handleNotificationsToggle}
+      />
+
+      <NotificationPanel
+        isOpen={isNotificationPanelOpen}
+        notifications={notifications}
+        unreadCount={unreadNotifications}
+        onClose={() => setIsNotificationPanelOpen(false)}
+        onMarkRead={handleMarkNotificationRead}
+        onMarkAllRead={handleMarkAllNotificationsRead}
       />
 
       {activeView === 'collections' ? (
@@ -758,6 +861,8 @@ export const Home = () => {
           onFavoriteToggle={handleFavoriteToggle}
           isFavorite={isFavorite}
           onMovieClick={handleMovieClick}
+          discoverCollections={discoverCollections}
+          onFollowCollection={handleFollowCollection}
         />
       ) : activeView === 'favorites' || activeView === 'watchlist' ? (
         <FavoritesPage
@@ -1037,6 +1142,7 @@ export const Home = () => {
             authEmail={authEmail}
             onRequireAuth={() => handleAuthOpen('login')}
             onMovieViewed={refreshRecommendations}
+            onNotificationCreated={loadNotifications}
             collections={collections}
             onCreateCollection={handleCreateCollection}
             onAddMovieToCollection={handleAddMovieToCollection}

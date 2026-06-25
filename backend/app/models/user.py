@@ -18,6 +18,19 @@ class User(Base):
     collections = relationship("Collection", back_populates="user", cascade="all, delete-orphan")
     search_history = relationship("SearchHistory", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
+    review_likes = relationship("ReviewLike", back_populates="user", cascade="all, delete-orphan")
+    collection_follows = relationship("CollectionFollow", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship(
+        "Notification",
+        back_populates="recipient",
+        cascade="all, delete-orphan",
+        foreign_keys="Notification.recipient_user_id",
+    )
+    sent_notifications = relationship(
+        "Notification",
+        back_populates="actor",
+        foreign_keys="Notification.actor_user_id",
+    )
     recently_viewed_movies = relationship("MovieView", back_populates="user", cascade="all, delete-orphan")
     preferences = relationship("UserPreference", back_populates="user", cascade="all, delete-orphan")
 

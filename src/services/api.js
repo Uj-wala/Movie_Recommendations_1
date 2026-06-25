@@ -93,7 +93,7 @@ const formatError = (error) => {
   if (responseError) {
     return responseError;
   }
-
+  
   if (error?.response?.status === 401) {
     return 'Unauthorized request. Please login again.';
   }
@@ -224,6 +224,15 @@ export const getCollections = async () => {
   }
 };
 
+export const getDiscoverCollections = async () => {
+  try {
+    const { data } = await apiClient.get('/collections/discover');
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error), data: [] };
+  }
+};
+
 export const createCollection = async (name, description = '') => {
   try {
     const { data } = await apiClient.post('/collections', { name, description });
@@ -276,6 +285,43 @@ export const removeMovieFromCollection = async (collectionId, imdbID) => {
   }
 };
 
+export const followCollection = async (collectionId) => {
+  try {
+    const { data } = await apiClient.post(`/collections/${collectionId}/follow`);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const unfollowCollection = async (collectionId) => {
+  try {
+    const { data } = await apiClient.delete(`/collections/${collectionId}/follow`);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const getNotifications = async () => {
+  try {
+    const { data } = await apiClient.get('/notifications');
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error), data: { items: [], unread_count: 0, total: 0 } };
+  }
+};
+
+export const markNotificationsRead = async (notificationIds = null) => {
+  try {
+    const payload = notificationIds ? { notification_ids: notificationIds } : {};
+    const { data } = await apiClient.patch('/notifications/read', payload);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error), data: { items: [], unread_count: 0, total: 0 } };
+  }
+};
+
 export const getMovieReviews = async (imdbID, page = 1, pageSize = 5) => {
   try {
     const { data } = await apiClient.get('/reviews', {
@@ -325,6 +371,24 @@ export const deleteReview = async (imdbID) => {
   try {
     await apiClient.delete(`/reviews/${imdbID}`);
     return { success: true };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const likeReview = async (reviewId) => {
+  try {
+    const { data } = await apiClient.post(`/reviews/${reviewId}/like`);
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: formatError(error) };
+  }
+};
+
+export const unlikeReview = async (reviewId) => {
+  try {
+    const { data } = await apiClient.delete(`/reviews/${reviewId}/like`);
+    return { success: true, data };
   } catch (error) {
     return { success: false, error: formatError(error) };
   }

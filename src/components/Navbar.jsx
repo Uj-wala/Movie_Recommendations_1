@@ -1,4 +1,4 @@
-import { FiFolder, FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiBell, FiFolder, FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
 import cineverseLogo from '../assets/cineverse-logo.svg';
 import { useTheme } from '../context/useTheme';
 
@@ -11,6 +11,9 @@ export const Navbar = ({
   onCollectionsClick,
   isAuthenticated = false,
   authEmail = '',
+  unreadNotifications = 0,
+  isNotificationsOpen = false,
+  onNotificationsClick,
   onLoginClick,
   onRegisterClick,
   onProfileClick,
@@ -115,6 +118,26 @@ export const Navbar = ({
             </>
           ) : (
             <>
+              <button
+                type="button"
+                onClick={onNotificationsClick}
+                className={`relative grid h-10 w-10 place-items-center rounded-full border text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-300/20 ${
+                  isNotificationsOpen
+                    ? 'border-cyan-300/60 bg-cyan-300/20 shadow-[0_0_24px_rgba(34,211,238,0.22)]'
+                    : 'border-cyan-300/30 bg-cyan-300/10'
+                }`}
+                aria-label="Open notifications"
+                aria-expanded={isNotificationsOpen}
+                aria-haspopup="dialog"
+                title="Notifications"
+              >
+                <FiBell />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-fuchsia-300 px-1 text-[0.65rem] font-black text-slate-950">
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                  </span>
+                )}
+              </button>
               <button
                 type="button"
                 onClick={onProfileClick}

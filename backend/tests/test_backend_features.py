@@ -22,6 +22,7 @@ from app.main import app  # noqa: E402
 from app.models.admin_activity_log import AdminActivityLog  # noqa: E402
 from app.models.collection import Collection, CollectionMovie  # noqa: E402
 from app.models.movie_view import MovieView  # noqa: E402
+from app.models.notification import Notification  # noqa: E402
 from app.models.review import Review  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
 from app.models.watchlist import Watchlist  # noqa: E402
@@ -479,6 +480,73 @@ class BackendFeatureTests(unittest.TestCase):
             self.assertIsNotNone(user_b)
             self.assertEqual(db.query(Review).filter(Review.user_id == user_a.id, Review.imdb_id == movie_id).count(), 1)
             self.assertEqual(db.query(Review).filter(Review.user_id == user_b.id, Review.imdb_id == movie_id).count(), 0)
+        finally:
+            db.close()
+
+    def test_notifications_are_created_for_likes_follows_and_recommendations(self):
+        owner_token = self.register_and_login(email="notify-owner@example.com")
+        actor_token = self.register_and_login(email="notify-actor@example.com")
+        owner_headers = self.auth_headers(owner_token)
+        actor_headers = self.auth_headers(actor_token)
+
+        review = self.client.post(
+            "/reviews",
+            json={"imdb_id": "fake-cine-001", "review": "A thoughtful review.", "rating": 4},
+            headers=owner_headers,
+        )
+        self.assertEqual(review.status_code, 201, review.text)
+        review_id = review.json()["id"]
+
+        liked = self.client.post(f"/reviews/{review_id}/like", headers=actor_headers)
+        self.assertEqual(liked.status_code, 200, liked.text)
+        self.assertEqual(liked.json()["likes_count"], 1)
+        self.assertTrue(liked.json()["liked_by_me"])
+
+        owner_notifications = self.client.get("/notifications", headers=owner_headers)
+        self.assertEqual(owner_notifications.status_code, 200, owner_notifications.text)
+        payload = owner_notifications.json()
+        self.assertEqual(payload["unread_count"], 1)
+        self.assertEqual(payload["items"][0]["type"], "review_liked")
+
+        marked = self.client.patch(
+            "/notifications/read",
+            json={"notification_ids": [payload["items"][0]["id"]]},
+            headers=owner_headers,
+        )
+        self.assertEqual(marked.status_code, 200, marked.text)
+        self.assertEqual(marked.json()["unread_count"], 0)
+
+        collection = self.client.post(
+            "/collections",
+            json={"name": "Notify Picks", "description": "Follow me"},
+            headers=owner_headers,
+        )
+        self.assertEqual(collection.status_code, 201, collection.text)
+        collection_id = collection.json()["id"]
+
+        followed = self.client.post(f"/collections/{collection_id}/follow", headers=actor_headers)
+        self.assertEqual(followed.status_code, 200, followed.text)
+        self.assertTrue(followed.json()["followed_by_me"])
+        self.assertEqual(followed.json()["followers_count"], 1)
+
+        owner_notifications = self.client.get("/notifications", headers=owner_headers)
+        self.assertEqual(owner_notifications.status_code, 200, owner_notifications.text)
+        self.assertTrue(any(item["type"] == "collection_followed" for item in owner_notifications.json()["items"]))
+
+        self.search_keywords(actor_token, ["Batman", "Superman"])
+        recommendations = self.client.get("/recommendations", headers=actor_headers)
+        self.assertEqual(recommendations.status_code, 200, recommendations.text)
+        actor_notifications = self.client.get("/notifications", headers=actor_headers)
+        self.assertEqual(actor_notifications.status_code, 200, actor_notifications.text)
+        self.assertTrue(any(item["type"] == "recommendation_generated" for item in actor_notifications.json()["items"]))
+
+        all_read = self.client.patch("/notifications/read", json={}, headers=actor_headers)
+        self.assertEqual(all_read.status_code, 200, all_read.text)
+        self.assertEqual(all_read.json()["unread_count"], 0)
+
+        db = SessionLocal()
+        try:
+            self.assertGreaterEqual(db.query(Notification).count(), 3)
         finally:
             db.close()
 

@@ -1,9 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiCalendar, FiClock, FiFolderPlus, FiHeart, FiStar, FiUser, FiUsers, FiX } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiFolderPlus, FiHeart, FiStar, FiThumbsUp, FiUser, FiUsers, FiX } from 'react-icons/fi';
 import { useToast } from '../context/useToast';
-import { getMovieDetails, getMovieReviews, getMyReview, addReview, updateReview, deleteReview } from '../services/api';
+import { getMovieDetails, getMovieReviews, getMyReview, addReview, updateReview, deleteReview, likeReview, unlikeReview } from '../services/api';
 import { SkeletonMovieModal } from './SkeletonLoader';
 
 const placeholderImage = 'https://placehold.co/600x900/07111f/67e8f9?text=No+Poster';
@@ -18,6 +18,7 @@ export const MovieModal = ({
   authEmail,
   onRequireAuth,
   onMovieViewed,
+  onNotificationCreated,
   collections = [],
   onCreateCollection,
   onAddMovieToCollection,
@@ -193,6 +194,28 @@ export const MovieModal = ({
     // refresh movie details to pick up new average rating
     const md = await getMovieDetails(movie.imdbID);
     if (md.success) setMovieDetails(md.data);
+  };
+
+  const handleReviewLikeToggle = async (review) => {
+    if (!isAuthenticated) {
+      onRequireAuth?.();
+      return;
+    }
+
+    const result = review.liked_by_me
+      ? await unlikeReview(review.id)
+      : await likeReview(review.id);
+
+    if (!result.success) {
+      addToast(result.error || 'Unable to update review like.', 'error');
+      return;
+    }
+
+    setReviews((currentReviews) => currentReviews.map((item) => (
+      item.id === review.id ? result.data : item
+    )));
+    addToast(review.liked_by_me ? 'Review like removed.' : 'Review liked.', review.liked_by_me ? 'info' : 'success');
+    onNotificationCreated?.();
   };
 
   const handleAddToCollection = async () => {
@@ -548,6 +571,25 @@ export const MovieModal = ({
                             )}
                           </div>
                           <p className="text-sm leading-6 text-slate-200">{review.review}</p>
+                          <div className="mt-4 flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                              {review.likes_count || 0} like{review.likes_count === 1 ? '' : 's'}
+                            </span>
+                            {review.user_email !== authEmail && (
+                              <button
+                                type="button"
+                                onClick={() => handleReviewLikeToggle(review)}
+                                className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black transition ${
+                                  review.liked_by_me
+                                    ? 'border border-fuchsia-300/30 bg-fuchsia-300/10 text-fuchsia-100 hover:bg-fuchsia-300/20'
+                                    : 'border border-cyan-300/30 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20'
+                                }`}
+                              >
+                                <FiThumbsUp className={review.liked_by_me ? 'fill-current' : ''} />
+                                {review.liked_by_me ? 'Liked' : 'Like'}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
 

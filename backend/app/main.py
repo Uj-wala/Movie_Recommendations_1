@@ -12,11 +12,12 @@ from app.routes.collections import router as collections_router
 from app.routes.favorites import router as favorites_router
 from app.routes.history import router as history_router
 from app.routes.movies import router as movies_router
+from app.routes.notifications import router as notifications_router
 from app.routes.recommendations import router as recommendations_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.reviews import router as reviews_router
 from app.routes.watchlist import router as watchlist_router
-from app.models import admin_activity_log, collection, favorite, movie_view, review, search_history, user, user_preference, watchlist  # noqa: F401
+from app.models import admin_activity_log, collection, collection_follow, favorite, movie_view, notification, review, review_like, search_history, user, user_preference, watchlist  # noqa: F401
 from app.services.auth_service import hash_password
 
 app = FastAPI(
@@ -52,6 +53,7 @@ app.include_router(collections_router)
 app.include_router(favorites_router)
 app.include_router(watchlist_router)
 app.include_router(history_router)
+app.include_router(notifications_router)
 app.include_router(recommendations_router)
 app.include_router(dashboard_router)
 app.include_router(reviews_router)

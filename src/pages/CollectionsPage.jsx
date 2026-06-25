@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiArrowLeft, FiEdit3, FiFilm, FiFolderPlus, FiSave, FiTrash2, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit3, FiFilm, FiFolderPlus, FiSave, FiTrash2, FiUserPlus, FiUsers, FiX } from 'react-icons/fi';
 import { EmptyState } from '../components/EmptyState';
 import { MovieCard } from '../components/MovieCard';
 
@@ -24,6 +24,8 @@ export const CollectionsPage = ({
   onFavoriteToggle,
   isFavorite,
   onMovieClick,
+  discoverCollections = [],
+  onFollowCollection,
 }) => {
   const [form, setForm] = useState({ name: '', description: '' });
   const [editingId, setEditingId] = useState(null);
@@ -142,6 +144,46 @@ export const CollectionsPage = ({
                       {collection.movie_count} movie{collection.movie_count === 1 ? '' : 's'}
                     </span>
                   </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.18em] text-fuchsia-200">
+              <FiUsers />
+              Discover
+            </div>
+            {discoverCollections.length === 0 ? (
+              <p className="text-sm text-slate-300">No public collections from other users yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {discoverCollections.map((collection) => (
+                  <div key={collection.id} className="rounded-2xl border border-white/10 bg-slate-950/40 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-white">{collection.name}</p>
+                        <p className="mt-1 truncate text-xs text-slate-400">
+                          {collection.owner_email || 'Another user'} / {collection.movie_count} movie{collection.movie_count === 1 ? '' : 's'}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {collection.followers_count || 0} follower{collection.followers_count === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onFollowCollection?.(collection.id, collection.followed_by_me)}
+                        className={`inline-flex shrink-0 items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black transition ${
+                          collection.followed_by_me
+                            ? 'border border-fuchsia-300/30 bg-fuchsia-300/10 text-fuchsia-100 hover:bg-fuchsia-300/20'
+                            : 'bg-cyan-300 text-slate-950 hover:bg-cyan-200'
+                        }`}
+                      >
+                        <FiUserPlus />
+                        {collection.followed_by_me ? 'Following' : 'Follow'}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

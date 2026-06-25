@@ -16,6 +16,7 @@ class Collection(Base):
     updated_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="collections")
+    followers = relationship("CollectionFollow", back_populates="collection", cascade="all, delete-orphan")
     movies = relationship(
         "CollectionMovie",
         back_populates="collection",

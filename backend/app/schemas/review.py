@@ -20,6 +20,8 @@ class ReviewResponse(BaseModel):
     review: str
     rating: int | None = None
     average_rating: float | None = None
+    likes_count: int = 0
+    liked_by_me: bool = False
     user_id: int
     user_email: str
     created_at: datetime
