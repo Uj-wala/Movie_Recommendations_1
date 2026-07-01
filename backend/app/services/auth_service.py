@@ -18,12 +18,23 @@ optional_auth_scheme = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
-    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=settings.bcrypt_rounds))
     return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+def get_password_hash_rounds(hashed_password: str) -> int | None:
+    try:
+        return int(hashed_password.split("$")[2])
+    except (IndexError, TypeError, ValueError):
+        return None
+
+
+def password_hash_needs_update(hashed_password: str) -> bool:
+    return get_password_hash_rounds(hashed_password) != settings.bcrypt_rounds
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:

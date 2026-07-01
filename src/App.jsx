@@ -6,6 +6,7 @@ import { ToastContainer } from './components/Toast.jsx';
 import { Home } from './pages/Home';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import './index.css';
 
 function App() {
@@ -18,6 +19,8 @@ function App() {
           <Routes>
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/compare" element={<Home />} />
             <Route path="*" element={<Home />} />
           </Routes>
           <ToastContainer />

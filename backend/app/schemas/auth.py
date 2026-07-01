@@ -30,13 +30,17 @@ class LoginRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    email: EmailStr
+    token: str = Field(min_length=32, max_length=256)
     new_password: str
 
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, value: str) -> str:
         return _validate_password_rules(value)
+
+
+class PasswordResetCodeRequest(BaseModel):
+    email: EmailStr
 
 
 class ProfileUpdateRequest(BaseModel):

@@ -26,6 +26,9 @@ export const CollectionsPage = ({
   onMovieClick,
   discoverCollections = [],
   onFollowCollection,
+  onCompareToggle,
+  isCompareSelected = () => false,
+  isCompareLimitReached = false,
 }) => {
   const [form, setForm] = useState({ name: '', description: '' });
   const [editingId, setEditingId] = useState(null);
@@ -289,6 +292,9 @@ export const CollectionsPage = ({
                           onClick={() => onMovieClick(normalizedMovie)}
                           onFavoriteToggle={onFavoriteToggle}
                           isFavorite={isFavorite(normalizedMovie.imdbID)}
+                          onCompareToggle={onCompareToggle}
+                          isCompareSelected={isCompareSelected(normalizedMovie.imdbID)}
+                          isCompareDisabled={isCompareLimitReached}
                           showQuickAction={false}
                           secondaryActionIcon={FiTrash2}
                           secondaryActionLabel="Remove from Collection"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiCalendar, FiHeart, FiInfo, FiPlayCircle, FiStar } from 'react-icons/fi';
+import { FiCalendar, FiColumns, FiHeart, FiInfo, FiPlayCircle, FiStar } from 'react-icons/fi';
 
 const placeholderImage = 'https://placehold.co/600x900/07111f/67e8f9?text=No+Poster';
 
@@ -23,6 +23,9 @@ export const MovieCard = ({
   secondaryActionAriaLabel = '',
   secondaryActionVariant = 'danger',
   onSecondaryAction,
+  onCompareToggle,
+  isCompareSelected = false,
+  isCompareDisabled = false,
 }) => {
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
   const hasPoster = Boolean(movie.Poster) && movie.Poster !== 'N/A';
@@ -39,6 +42,9 @@ export const MovieCard = ({
   const secondaryActionButtonClassName = secondaryActionVariant === 'danger'
     ? 'border-rose-300/40 bg-rose-100/90 text-rose-800 hover:bg-rose-200/90 dark:border-rose-300/35 dark:bg-rose-300/15 dark:text-rose-100 dark:hover:bg-rose-300/25'
     : 'border-cyan-300/40 bg-cyan-100/90 text-cyan-800 hover:bg-cyan-200/90 dark:border-cyan-300/30 dark:bg-cyan-300/10 dark:text-cyan-100 dark:hover:bg-cyan-300/20';
+  const compareButtonClassName = isCompareSelected
+    ? 'border-emerald-300/50 bg-emerald-100/90 text-emerald-800 hover:bg-emerald-200/90 dark:border-emerald-300/40 dark:bg-emerald-300/15 dark:text-emerald-100 dark:hover:bg-emerald-300/25'
+    : 'border-indigo-300/40 bg-indigo-100/90 text-indigo-800 hover:bg-indigo-200/90 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-300/30 dark:bg-indigo-300/10 dark:text-indigo-100 dark:hover:bg-indigo-300/20';
   // Prefer averageRating (1-5) from backend; otherwise convert imdbRating (1-10) to 1-5 scale
   const rating = (movie.averageRating != null)
     ? String(movie.averageRating)
@@ -206,6 +212,22 @@ export const MovieCard = ({
             <ActionIcon className={actionIconClassName} />
             {actionLabel}
           </button>
+
+          {onCompareToggle && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onCompareToggle(movie);
+              }}
+              disabled={!isCompareSelected && isCompareDisabled}
+              className={`mt-2 inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition ${compareButtonClassName}`}
+              aria-label={isCompareSelected ? 'Remove from compare' : 'Add to compare'}
+            >
+              <FiColumns />
+              {isCompareSelected ? 'Selected to Compare' : 'Compare'}
+            </button>
+          )}
 
           {onSecondaryAction && secondaryActionLabel && (
             <button

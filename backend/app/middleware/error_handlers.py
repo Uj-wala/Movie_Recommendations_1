@@ -63,7 +63,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         if isinstance(exc.detail, dict):
             payload["message"] = "Invalid request"
             payload["errors"] = exc.detail
-        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED and payload["message"] in {"Error", "Unauthorized"}:
             payload["message"] = "Unauthorized"
         elif exc.status_code == status.HTTP_403_FORBIDDEN:
             payload["message"] = "Forbidden"

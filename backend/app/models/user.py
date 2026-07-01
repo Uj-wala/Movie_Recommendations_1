@@ -33,6 +33,7 @@ class User(Base):
     )
     recently_viewed_movies = relationship("MovieView", back_populates="user", cascade="all, delete-orphan")
     preferences = relationship("UserPreference", back_populates="user", cascade="all, delete-orphan")
+    password_reset_codes = relationship("PasswordResetCode", back_populates="user", cascade="all, delete-orphan")
 
     @property
     def movie_views(self):

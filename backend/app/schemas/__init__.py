@@ -1,6 +1,7 @@
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
+    PasswordResetCodeRequest,
     ProfileResponse,
     ProfileUpdateRequest,
     RegisterRequest,
@@ -20,7 +21,17 @@ from app.schemas.collection import (
 from app.schemas.favorite import FavoriteCreate, FavoriteResponse
 from app.schemas.error import ErrorResponse, ValidationErrorResponse
 from app.schemas.history import SearchHistoryItem, SearchHistoryQuery, SearchHistoryResponse, SearchKeywordQuery
-from app.schemas.movie import MovieDetailResponse, MovieSearchResponse, MovieSummary
+from app.schemas.movie import (
+    AttributeComparison,
+    GenreComparison,
+    MovieCompareItem,
+    MovieCompareResponse,
+    MovieComparisonSummary,
+    MovieDetailResponse,
+    MovieSearchResponse,
+    MovieSummary,
+    NumericComparison,
+)
 from app.schemas.notification import NotificationListResponse, NotificationResponse
 from app.schemas.recommendation import RecommendationItem, RecommendationResponse
 from app.schemas.review import ReviewCreate, ReviewResponse, ReviewUpdate
@@ -29,6 +40,7 @@ __all__ = [
     "RegisterRequest",
     "LoginRequest",
     "ResetPasswordRequest",
+    "PasswordResetCodeRequest",
     "ProfileUpdateRequest",
     "ChangePasswordRequest",
     "TokenResponse",
@@ -48,6 +60,12 @@ __all__ = [
     "MovieSearchResponse",
     "MovieDetailResponse",
     "MovieSummary",
+    "MovieCompareItem",
+    "MovieCompareResponse",
+    "MovieComparisonSummary",
+    "NumericComparison",
+    "GenreComparison",
+    "AttributeComparison",
     "NotificationResponse",
     "NotificationListResponse",
     "RecommendationItem",

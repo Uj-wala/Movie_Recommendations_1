@@ -154,6 +154,7 @@ export const ProfilePage = () => {
         onWatchlistClick={() => navigate('/watchlist')}
         onFavoritesClick={() => navigate('/favorites')}
         onCollectionsClick={() => navigate('/collections')}
+        onCompareClick={() => navigate('/compare')}
         isAuthenticated={isAuthenticated}
         authEmail={authEmail}
         onLoginClick={() => navigate('/')}

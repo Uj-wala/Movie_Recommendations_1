@@ -4,6 +4,7 @@ from app.models.collection_follow import CollectionFollow
 from app.models.admin_activity_log import AdminActivityLog
 from app.models.movie_view import MovieView
 from app.models.notification import Notification
+from app.models.password_reset import PasswordResetCode
 from app.models.review import Review
 from app.models.review_like import ReviewLike
 from app.models.user import User
@@ -21,6 +22,7 @@ __all__ = [
     "Review",
     "ReviewLike",
     "Notification",
+    "PasswordResetCode",
     "SearchHistory",
     "MovieView",
     "UserPreference",

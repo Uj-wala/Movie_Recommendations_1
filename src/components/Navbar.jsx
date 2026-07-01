@@ -1,4 +1,4 @@
-import { FiBell, FiFolder, FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiBell, FiColumns, FiFolder, FiHome, FiHeart, FiLogIn, FiLogOut, FiMoon, FiSun, FiUser, FiUserPlus } from 'react-icons/fi';
 import cineverseLogo from '../assets/cineverse-logo.svg';
 import { useTheme } from '../context/useTheme';
 
@@ -9,6 +9,8 @@ export const Navbar = ({
   onWatchlistClick,
   onFavoritesClick,
   onCollectionsClick,
+  onCompareClick,
+  compareCount = 0,
   isAuthenticated = false,
   authEmail = '',
   unreadNotifications = 0,
@@ -95,6 +97,24 @@ export const Navbar = ({
           >
             <FiFolder />
             <span className="hidden sm:inline">Collections</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onCompareClick}
+            className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black shadow-[0_0_28px_rgba(99,102,241,0.14)] transition hover:border-indigo-200/60 hover:bg-indigo-300/20 ${
+              activeView === 'compare'
+                ? 'border-indigo-300/50 bg-indigo-300/20 text-indigo-700 dark:text-indigo-100'
+                : 'border-indigo-300/25 bg-indigo-300/10 text-indigo-700 dark:text-indigo-100'
+            }`}
+          >
+            <FiColumns />
+            <span className="hidden sm:inline">Compare</span>
+            {compareCount > 0 && (
+              <span className="grid h-6 min-w-6 place-items-center rounded-full bg-indigo-300 px-2 text-xs text-slate-950">
+                {compareCount}
+              </span>
+            )}
           </button>
 
           {!isAuthenticated ? (

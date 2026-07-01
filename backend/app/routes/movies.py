@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.review import Review
 from app.models.user import User
-from app.schemas.history import SearchKeywordQuery
-from app.schemas.movie import MovieDetailResponse, MovieSearchResponse
 from app.repositories.movie_view_repository import MovieViewRepository
-from app.services.auth_service import get_current_user, get_optional_current_user
+from app.repositories.user_repository import UserRepository
+from app.schemas.history import SearchKeywordQuery
+from app.schemas.movie import MovieCompareResponse, MovieDetailResponse, MovieSearchResponse
+from app.services.auth_service import _decode_user_id, get_optional_current_user, optional_auth_scheme
+from app.services.movie_compare_service import MovieCompareService
 from app.services.omdb_service import get_movie_by_imdb_id, search_movies
 from app.services.search_history_service import SearchHistoryService
 from app.services.telugu_2025_service import (
@@ -17,6 +20,20 @@ from app.services.telugu_2025_service import (
 )
 
 router = APIRouter(prefix="/movies", tags=["movies"])
+
+
+def get_search_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_auth_scheme),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if credentials is None:
+        return None
+
+    parsed_user_id = _decode_user_id(credentials.credentials)
+    user = UserRepository.get_by_id(db, parsed_user_id)
+    if not user:
+        return None
+    return user
 
 
 def _movie_rating_snapshot(db: Session, imdb_id: str, current_user: User | None) -> tuple[float | None, float | None, int | None]:
@@ -42,9 +59,10 @@ def _movie_rating_snapshot(db: Session, imdb_id: str, current_user: User | None)
 async def movie_search(
     query: SearchKeywordQuery = Depends(),
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User | None = Depends(get_search_user),
 ):
-    SearchHistoryService.track_search(db=db, user=current_user, keyword=query.keyword)
+    if current_user:
+        SearchHistoryService.track_search(db=db, user=current_user, keyword=query.keyword)
     result = await search_movies(title=query.normalized_keyword, page=query.page)
     return result
 
@@ -56,6 +74,15 @@ def telugu_2025_movies(
     page_size: int = Query(10, ge=1, le=50),
 ):
     return search_telugu_2025_movies(query=q, page=page, page_size=page_size)
+
+
+@router.get("/compare", response_model=MovieCompareResponse)
+async def compare_movies(
+    movie1: str = Query(..., min_length=1, description="First movie IMDb id"),
+    movie2: str = Query(..., min_length=1, description="Second movie IMDb id"),
+    db: Session = Depends(get_db),
+):
+    return await MovieCompareService.compare_movies(db=db, movie1=movie1, movie2=movie2)
 
 
 @router.get("/{imdb_id}", response_model=MovieDetailResponse)

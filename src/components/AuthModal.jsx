@@ -4,10 +4,21 @@ import { motion } from 'framer-motion';
 import { FiArrowLeft, FiX } from 'react-icons/fi';
 import { useTheme } from '../context/useTheme';
 
-export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoading, error }) => {
+export const AuthModal = ({
+  isOpen,
+  mode,
+  onClose,
+  onSubmit,
+  onModeChange,
+  onRequestPasswordReset,
+  isLoading,
+  error,
+}) => {
   const { isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetLinkSent, setResetLinkSent] = useState(false);
+  const [manualResetLink, setManualResetLink] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
 
@@ -33,6 +44,8 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
     if (isOpen) {
       setEmail('');
       setPassword('');
+      setResetLinkSent(false);
+      setManualResetLink('');
       setEmailError('');
       setPasswordError('');
     }
@@ -43,9 +56,10 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
   }
 
   const isResetMode = mode === 'reset';
+  const isRequestingResetLink = isResetMode;
   const requireStrength = mode !== 'login';
   const title = mode === 'register' ? 'Create account' : isResetMode ? 'Reset password' : 'Sign in';
-  const submitLabel = mode === 'register' ? 'Register' : isResetMode ? 'Update password' : 'Login';
+  const submitLabel = mode === 'register' ? 'Register' : isResetMode ? 'Send reset link' : 'Login';
   const shellText = isDark ? 'text-slate-100' : 'text-[#f8fafc]';
   const mutedText = isDark ? 'text-slate-300' : 'text-[#cbd5e1]';
   const softText = isDark ? 'text-slate-400' : 'text-[#94a3b8]';
@@ -83,12 +97,26 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
             event.preventDefault();
             const trimmedEmail = email.trim();
             const emailValidation = validateEmail(trimmedEmail);
-            const passwordValidation = validatePassword(password, requireStrength);
+            const passwordValidation = isResetMode ? '' : validatePassword(password, requireStrength);
 
             setEmailError(emailValidation);
             setPasswordError(passwordValidation);
 
             if (emailValidation || passwordValidation) {
+              return;
+            }
+
+            if (isRequestingResetLink) {
+              if (!onRequestPasswordReset) {
+                return;
+              }
+
+              onRequestPasswordReset(trimmedEmail).then((result) => {
+                if (result?.success) {
+                  setResetLinkSent(true);
+                  setManualResetLink(result.resetLink || '');
+                }
+              });
               return;
             }
 
@@ -111,23 +139,25 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
             {emailError && <p className="mt-2 text-xs text-rose-300">{emailError}</p>}
           </label>
 
-          <label className={`block text-sm font-semibold ${mutedText}`}>
-            {isResetMode ? 'New password' : 'Password'}
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => {
-                setPassword(event.target.value);
-                setPasswordError(validatePassword(event.target.value, requireStrength));
-              }}
-              required
-              autoComplete={isResetMode ? 'new-password' : 'current-password'}
-              className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
-            />
-            {passwordError && <p className="mt-2 text-xs text-rose-300">{passwordError}</p>}
-          </label>
+          {!isResetMode && (
+            <label className={`block text-sm font-semibold ${mutedText}`}>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setPasswordError(validatePassword(event.target.value, requireStrength));
+                }}
+                required
+                autoComplete="current-password"
+                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+              />
+              {passwordError && <p className="mt-2 text-xs text-rose-300">{passwordError}</p>}
+            </label>
+          )}
 
-          {!isResetMode ? (
+          {mode === 'login' && (
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-300/70 bg-slate-100/95 px-4 py-3 text-xs text-slate-800 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
               <span className="font-semibold text-slate-800 dark:text-slate-200">Forgot your password?</span>
               <button
@@ -139,9 +169,22 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
                 Reset it
               </button>
             </div>
-          ) : (
+          )}
+
+          {isResetMode && (
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-xs leading-6 text-cyan-100">
-              Enter your email and a new password to update the account password.
+              {resetLinkSent
+                ? 'Check your email and open the reset link to choose a new password.'
+                : 'Enter your email to receive a password reset link.'}
+            </div>
+          )}
+
+          {manualResetLink && (
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-100">
+              {manualResetLink.startsWith('http') ? 'Use this reset link to continue:' : 'Email delivery is not configured. Open this reset link:'}
+              <a href={manualResetLink} className="mt-2 block break-all font-black text-amber-50 underline">
+                {manualResetLink}
+              </a>
             </div>
           )}
 
@@ -153,7 +196,13 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
 
           <button
             type="submit"
-            disabled={isLoading || !!emailError || !!passwordError || !email || !password}
+            disabled={
+              isLoading ||
+              !!emailError ||
+              !!passwordError ||
+              !email ||
+              (!isResetMode && !password)
+            }
             className="w-full rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isLoading ? 'Working...' : submitLabel}
@@ -162,7 +211,9 @@ export const AuthModal = ({ isOpen, mode, onClose, onSubmit, onModeChange, isLoa
           {isResetMode && (
             <button
               type="button"
-              onClick={() => onModeChange?.('login')}
+              onClick={() => {
+                onModeChange?.('login');
+              }}
               className={`w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] ${softText} transition hover:bg-white/10`}
             >
               Back to sign in

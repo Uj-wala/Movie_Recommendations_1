@@ -2,6 +2,7 @@ import os
 import unittest
 from pathlib import Path
 from datetime import timedelta
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -23,6 +24,7 @@ from app.models.admin_activity_log import AdminActivityLog  # noqa: E402
 from app.models.collection import Collection, CollectionMovie  # noqa: E402
 from app.models.movie_view import MovieView  # noqa: E402
 from app.models.notification import Notification  # noqa: E402
+from app.models.password_reset import PasswordResetCode  # noqa: E402
 from app.models.review import Review  # noqa: E402
 from app.models.search_history import SearchHistory  # noqa: E402
 from app.models.watchlist import Watchlist  # noqa: E402
@@ -483,6 +485,78 @@ class BackendFeatureTests(unittest.TestCase):
         finally:
             db.close()
 
+    def test_movie_compare_returns_details_review_average_and_review_count(self):
+        token_a = self.register_and_login(email="compare-a@example.com")
+        token_b = self.register_and_login(email="compare-b@example.com")
+        token_c = self.register_and_login(email="compare-c@example.com")
+
+        self.client.post(
+            "/reviews",
+            json={"imdb_id": "fake-cine-001", "review": "Great atmosphere.", "rating": 4},
+            headers=self.auth_headers(token_a),
+        )
+        self.client.post(
+            "/reviews",
+            json={"imdb_id": "fake-cine-001", "review": "Loved the world.", "rating": 5},
+            headers=self.auth_headers(token_b),
+        )
+        self.client.post(
+            "/reviews",
+            json={"imdb_id": "fake-cine-002", "review": "Solid mystery.", "rating": 3},
+            headers=self.auth_headers(token_c),
+        )
+
+        compared = self.client.get(
+            "/movies/compare",
+            params={"movie1": "fake-cine-001", "movie2": "fake-cine-002"},
+        )
+        self.assertEqual(compared.status_code, 200, compared.text)
+
+        payload = compared.json()
+        self.assertEqual(payload["movie1"]["movie"]["imdb_id"], "fake-cine-001")
+        self.assertEqual(payload["movie1"]["movie"]["title"], "Neon Horizon")
+        self.assertEqual(payload["movie1"]["average_user_rating"], 4.5)
+        self.assertEqual(payload["movie1"]["total_reviews"], 2)
+        self.assertEqual(payload["movie1"]["movie"]["average_rating"], 4.5)
+
+        self.assertEqual(payload["movie2"]["movie"]["imdb_id"], "fake-cine-002")
+        self.assertEqual(payload["movie2"]["movie"]["title"], "Midnight Solaris")
+        self.assertEqual(payload["movie2"]["average_user_rating"], 3.0)
+        self.assertEqual(payload["movie2"]["total_reviews"], 1)
+        self.assertEqual(payload["movie2"]["movie"]["average_rating"], 3.0)
+        self.assertEqual(payload["summary"]["rating"]["winner"], "movie1")
+        self.assertEqual(payload["summary"]["rating"]["difference"], 1.5)
+        self.assertEqual(payload["summary"]["release_year"]["winner"], "movie1")
+        self.assertEqual(payload["summary"]["duration_minutes"]["winner"], "movie1")
+        self.assertEqual(payload["summary"]["genres"]["common"], [])
+        self.assertIn("Sci-Fi", payload["summary"]["genres"]["only_movie1"])
+        self.assertIn("Adventure", payload["summary"]["genres"]["only_movie2"])
+        self.assertTrue(payload["summary"]["highlights"])
+
+    def test_movie_compare_validates_ids_and_missing_movies(self):
+        invalid = self.client.get(
+            "/movies/compare",
+            params={"movie1": "bad id", "movie2": "fake-cine-002"},
+        )
+        self.assertEqual(invalid.status_code, 400, invalid.text)
+        self.assertEqual(invalid.json()["message"], "Invalid request")
+        self.assertEqual(invalid.json()["errors"]["movie1"], "Invalid movie id")
+
+        missing_param = self.client.get(
+            "/movies/compare",
+            params={"movie1": "fake-cine-001"},
+        )
+        self.assertEqual(missing_param.status_code, 400, missing_param.text)
+        self.assertEqual(missing_param.json()["message"], "Invalid request")
+        self.assertIn("movie2", missing_param.json()["errors"])
+
+        missing_movie = self.client.get(
+            "/movies/compare",
+            params={"movie1": "fake-cine-999", "movie2": "fake-cine-002"},
+        )
+        self.assertEqual(missing_movie.status_code, 404, missing_movie.text)
+        self.assertEqual(missing_movie.json()["message"], "Movie not found: fake-cine-999")
+
     def test_notifications_are_created_for_likes_follows_and_recommendations(self):
         owner_token = self.register_and_login(email="notify-owner@example.com")
         actor_token = self.register_and_login(email="notify-actor@example.com")
@@ -676,6 +750,76 @@ class BackendFeatureTests(unittest.TestCase):
 
         new_login = self.client.post("/login", json={"email": "new-profile@example.com", "password": "Newpass123"})
         self.assertEqual(new_login.status_code, 200, new_login.text)
+
+    def test_password_reset_request_returns_reset_link_payload(self):
+        self.register_and_login(email="reset-link@example.com", password="Password123")
+
+        reset_token = "reset-token-value-that-is-long-enough-for-validation"
+        with patch("app.routes.auth.secrets.token_urlsafe", return_value=reset_token), patch(
+            "app.routes.auth.send_password_reset_link"
+        ) as send_mail:
+            requested = self.client.post("/reset-password/request", json={"email": "reset-link@example.com"})
+
+        self.assertEqual(requested.status_code, 200, requested.text)
+        self.assertEqual(requested.json()["delivery"], "email")
+        self.assertEqual(requested.json()["reset_link"], f"http://localhost:5173/reset-password?token={reset_token}")
+        send_mail.assert_called_once()
+
+    def test_password_reset_requires_emailed_reset_link_token(self):
+        self.register_and_login(email="reset@example.com", password="Password123")
+
+        no_token = self.client.post(
+            "/reset-password/confirm",
+            json={"new_password": "Resetpass123"},
+        )
+        self.assertEqual(no_token.status_code, 400, no_token.text)
+        self.assertEqual(no_token.json()["errors"]["token"], "Field required")
+
+        reset_token = "reset-token-value-that-is-long-enough-for-validation"
+        with patch("app.routes.auth.secrets.token_urlsafe", return_value=reset_token), patch(
+            "app.routes.auth.send_password_reset_link"
+        ) as send_mail:
+            requested = self.client.post("/reset-password/request", json={"email": "reset@example.com"})
+
+        self.assertEqual(requested.status_code, 200, requested.text)
+        self.assertEqual(requested.json()["message"], "Password reset link sent to your email")
+        send_mail.assert_called_once_with(
+            "reset@example.com",
+            f"http://localhost:5173/reset-password?token={reset_token}",
+        )
+
+        old_login_before_confirm = self.client.post(
+            "/login",
+            json={"email": "reset@example.com", "password": "Password123"},
+        )
+        self.assertEqual(old_login_before_confirm.status_code, 200, old_login_before_confirm.text)
+
+        wrong_token = self.client.post(
+            "/reset-password/confirm",
+            json={"token": "wrong-reset-token-value-that-is-long-enough", "new_password": "Resetpass123"},
+        )
+        self.assertEqual(wrong_token.status_code, 400, wrong_token.text)
+        self.assertEqual(wrong_token.json()["message"], "Invalid or expired reset link")
+
+        confirmed = self.client.post(
+            "/reset-password/confirm",
+            json={"token": reset_token, "new_password": "Resetpass123"},
+        )
+        self.assertEqual(confirmed.status_code, 200, confirmed.text)
+        self.assertEqual(confirmed.json()["message"], "Password updated successfully")
+
+        old_login = self.client.post("/login", json={"email": "reset@example.com", "password": "Password123"})
+        self.assertEqual(old_login.status_code, 401, old_login.text)
+
+        new_login = self.client.post("/login", json={"email": "reset@example.com", "password": "Resetpass123"})
+        self.assertEqual(new_login.status_code, 200, new_login.text)
+
+        db = SessionLocal()
+        try:
+            reset_code = db.query(PasswordResetCode).one()
+            self.assertIsNotNone(reset_code.used_at)
+        finally:
+            db.close()
 
     def test_admin_email_gets_admin_access_and_admin_routes_require_it(self):
         admin_token = self.register_and_login(email="Admin@gmail.com", password="Admin@123")

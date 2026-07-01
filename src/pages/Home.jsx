@@ -1,7 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { FiAlertTriangle, FiFilm, FiTrendingUp, FiZap } from 'react-icons/fi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/useTheme';
 import { useToast } from '../context/useToast';
@@ -13,7 +11,7 @@ import {
   searchMovies,
   loginUser,
   registerUser,
-  resetPassword,
+  requestPasswordReset,
   getFavorites,
   addFavorite,
   removeFavorite,
@@ -33,103 +31,16 @@ import {
   getSearchHistory,
 } from '../services/api';
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { CinematicBackground } from '../components/CinematicBackground';
-import { SearchBar } from '../components/SearchBar';
-import { MovieCard } from '../components/MovieCard';
-import { MovieModal } from '../components/MovieModal';
-import { Loader } from '../components/Loader';
-import { Pagination } from '../components/Pagination';
-import { Navbar } from '../components/Navbar';
-import { AuthModal } from '../components/AuthModal';
-import { NotificationPanel } from '../components/NotificationPanel';
+import { HomeContent } from '../components/home/HomeContent';
+import {
+  getRandomHeroMovie,
+  isUnauthorizedError,
+  normalizeCollections,
+  normalizeFavoritesList,
+  normalizeMovieCard,
+  toStoredFavorite,
+} from '../utils/homeMovies';
 import heroPoster from '../assets/hero-poster.svg';
-import { FavoritesPage } from './FavoritesPage';
-import { CollectionsPage } from './CollectionsPage';
-
-const HERO_MOVIE_STORAGE_KEY = 'cineverse:lastHeroMovieId';
-
-const normalizeFavorite = (favorite) => ({
-  ...favorite,
-  imdbID: favorite.imdbID || favorite.imdb_id,
-  Title: favorite.Title || favorite.title,
-  Year: favorite.Year || favorite.year,
-  Poster: favorite.Poster || favorite.poster_url,
-  Type: favorite.Type || favorite.type || 'movie',
-});
-
-const normalizeFavoritesList = (favoriteList = []) => {
-  const favoritesMap = new Map();
-
-  favoriteList.forEach((favorite) => {
-    const normalized = normalizeFavorite(favorite);
-    if (normalized.imdbID) {
-      favoritesMap.set(normalized.imdbID, normalized);
-    }
-  });
-
-  return Array.from(favoritesMap.values());
-};
-
-const toStoredFavorite = (movie) => ({
-  imdbID: movie.imdbID,
-  Title: movie.Title,
-  Year: movie.Year,
-  Poster: movie.Poster,
-  Type: movie.Type || 'movie',
-  imdbRating: movie.imdbRating,
-  averageRating: movie.averageRating,
-});
-
-const isUnauthorizedError = (message = '') => {
-  const normalizedMessage = message.toLowerCase();
-  return normalizedMessage.includes('unauthorized') || normalizedMessage.includes('login again');
-};
-
-const normalizeMovieCard = (movie) => ({
-  ...movie,
-  imdbID: movie.imdbID || movie.imdb_id,
-  Title: movie.Title || movie.title,
-  Year: movie.Year || movie.year,
-  Poster: movie.Poster || movie.poster || movie.poster_url,
-  Type: movie.Type || movie.type || 'movie',
-  Plot: movie.Plot || movie.plot,
-  imdbRating: movie.imdbRating || movie.imdb_rating,
-  averageRating: movie.averageRating ?? movie.average_rating ?? null,
-});
-
-const normalizeCollections = (collections = []) =>
-  collections.map((collection) => ({
-    ...collection,
-    movie_count: collection.movie_count ?? collection.movies?.length ?? 0,
-    movies: Array.isArray(collection.movies) ? collection.movies : [],
-  }));
-
-const getRandomHeroMovie = (movies = []) => {
-  if (!movies.length) return null;
-
-  let previousHeroId = '';
-  try {
-    previousHeroId = localStorage.getItem(HERO_MOVIE_STORAGE_KEY) || '';
-  } catch {
-    previousHeroId = '';
-  }
-
-  const candidateMovies = movies.length > 1
-    ? movies.filter((movie) => movie.imdbID !== previousHeroId)
-    : movies;
-  const pool = candidateMovies.length ? candidateMovies : movies;
-  const heroMovie = pool[Math.floor(Math.random() * pool.length)];
-
-  try {
-    if (heroMovie?.imdbID) {
-      localStorage.setItem(HERO_MOVIE_STORAGE_KEY, heroMovie.imdbID);
-    }
-  } catch {
-    // Ignore storage restrictions; random selection still works for this page load.
-  }
-
-  return heroMovie;
-};
 
 export const Home = () => {
   const { isDark } = useTheme();
@@ -177,15 +88,18 @@ export const Home = () => {
   const watchlistStorageKey = authEmail ? `watchlistMovies:${authEmail.toLowerCase().trim()}` : 'watchlistMovies:guest';
   const [localFavorites, setLocalFavorites] = useLocalStorage(watchlistStorageKey, []);
   const [favorites, setFavorites] = useState(() => normalizeFavoritesList(localFavorites));
+  const [compareMovies, setCompareMovies] = useLocalStorage('compareMovies', []);
   const activeView = location.pathname.startsWith('/favorites')
     ? 'favorites'
     : location.pathname.startsWith('/watchlist')
       ? 'watchlist'
       : location.pathname.startsWith('/collections')
         ? 'collections'
-      : location.pathname.startsWith('/admin')
-        ? 'admin'
-      : 'home';
+        : location.pathname.startsWith('/compare')
+          ? 'compare'
+          : location.pathname.startsWith('/admin')
+            ? 'admin'
+            : 'home';
 
   const replaceFavorites = useCallback((nextFavorites) => {
     const normalizedFavorites = normalizeFavoritesList(nextFavorites);
@@ -643,6 +557,46 @@ export const Home = () => {
     navigate('/profile');
   };
 
+  const handlePasswordResetRequest = async (email) => {
+    setAuthLoading(true);
+    setAuthError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      const message = !email.trim() ? 'Email is required.' : 'Enter a valid email address.';
+      setAuthError(message);
+      addToast(message, 'error');
+      setAuthLoading(false);
+      return false;
+    }
+
+    try {
+      const result = await requestPasswordReset(email.trim());
+      if (!result.success) {
+        const message = result.error || 'Unable to create reset link.';
+        setAuthError(message);
+        addToast(message, 'error');
+        return false;
+      }
+
+      setAuthError('');
+      addToast(
+        result.data?.delivery === 'email'
+          ? 'Password reset link sent to your email.'
+          : 'Use the reset link shown in the dialog.',
+        'success'
+      );
+      return { success: true, resetLink: result.data?.reset_link || '' };
+    } catch (err) {
+      const message = err.message || 'Unable to create reset link.';
+      setAuthError(message);
+      addToast(message, 'error');
+      return { success: false };
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const handleAuthSubmit = async (email, password) => {
     setAuthLoading(true);
     setAuthError('');
@@ -664,18 +618,6 @@ export const Home = () => {
           addToast(message, 'error');
           return;
         }
-      } else if (authMode === 'reset') {
-        const resetResult = await resetPassword(email, password);
-        if (!resetResult.success) {
-          const message = resetResult.error || 'Password reset failed.';
-          setAuthError(message);
-          addToast(message, 'error');
-          return;
-        }
-
-        addToast('Password updated successfully. Please sign in again.', 'success');
-        setAuthMode('login');
-        return;
       }
 
       const loginResult = await loginUser(email, password);
@@ -799,6 +741,52 @@ export const Home = () => {
   ]);
 
   const isFavorite = (imdbID) => favorites.some((m) => m.imdbID === imdbID);
+  const normalizedCompareMovies = normalizeFavoritesList(compareMovies).slice(0, 2).map(normalizeMovieCard);
+  const isCompareSelected = (imdbID) => normalizedCompareMovies.some((movie) => movie.imdbID === imdbID);
+  const isCompareLimitReached = normalizedCompareMovies.length >= 2;
+
+  const handleCompareToggle = useCallback(async (movie) => {
+    if (!movie?.imdbID) return;
+
+    const normalizedMovie = normalizeMovieCard(movie);
+    const isSelected = normalizedCompareMovies.some((selectedMovie) => selectedMovie.imdbID === normalizedMovie.imdbID);
+
+    if (isSelected) {
+      setCompareMovies((current) => current.filter((selectedMovie) => {
+        const currentMovie = normalizeMovieCard(selectedMovie);
+        return currentMovie.imdbID !== normalizedMovie.imdbID;
+      }));
+      addToast('Removed from comparison.', 'info');
+      return;
+    }
+
+    if (normalizedCompareMovies.length >= 2) {
+      addToast('You can compare up to 2 movies at a time.', 'warning');
+      return;
+    }
+
+    let movieForComparison = normalizedMovie;
+    const details = await getMovieDetails(normalizedMovie.imdbID);
+    if (details.success && details.data) {
+      movieForComparison = normalizeMovieCard({
+        ...normalizedMovie,
+        ...details.data,
+      });
+    }
+
+    setCompareMovies((current) => normalizeFavoritesList([movieForComparison, ...current]).slice(0, 2));
+    addToast('Added to comparison.', 'success');
+  }, [addToast, normalizedCompareMovies, setCompareMovies]);
+
+  const handleRemoveCompareMovie = useCallback((imdbID) => {
+    setCompareMovies((current) => current.filter((movie) => normalizeMovieCard(movie).imdbID !== imdbID));
+    addToast('Removed from comparison.', 'info');
+  }, [addToast, setCompareMovies]);
+
+  const handleClearCompareMovies = useCallback(() => {
+    setCompareMovies([]);
+    addToast('Comparison cleared.', 'info');
+  }, [addToast, setCompareMovies]);
 
   const handleMovieClick = (movie) => {
     setSelectedMovie(movie);
@@ -819,385 +807,28 @@ export const Home = () => {
   const showRecommendedSection = isDiscoveryMode;
 
   return (
-    <div className={`min-h-screen overflow-x-hidden transition-colors duration-500 ${isDark ? 'text-white' : 'text-slate-950'}`}>
-      <CinematicBackground />
-
-      <Navbar
-        favoriteCount={favorites.length}
-        activeView={activeView}
-        onHomeClick={() => navigate('/')}
-        onWatchlistClick={() => navigate('/watchlist')}
-        onFavoritesClick={() => navigate('/favorites')}
-        onCollectionsClick={() => navigate('/collections')}
-        isAuthenticated={isAuthenticated}
-        authEmail={authEmail}
-        onLoginClick={() => handleAuthOpen('login')}
-        onRegisterClick={() => handleAuthOpen('register')}
-        onProfileClick={handleProfileOpen}
-        onLogoutClick={handleLogout}
-        unreadNotifications={unreadNotifications}
-        isNotificationsOpen={isNotificationPanelOpen}
-        onNotificationsClick={handleNotificationsToggle}
-      />
-
-      <NotificationPanel
-        isOpen={isNotificationPanelOpen}
-        notifications={notifications}
-        unreadCount={unreadNotifications}
-        onClose={() => setIsNotificationPanelOpen(false)}
-        onMarkRead={handleMarkNotificationRead}
-        onMarkAllRead={handleMarkAllNotificationsRead}
-      />
-
-      {activeView === 'collections' ? (
-        <CollectionsPage
-          collections={collections}
-          isLoading={collectionsLoading}
-          onBack={() => navigate('/')}
-          onCreateCollection={handleCreateCollection}
-          onUpdateCollection={handleUpdateCollection}
-          onDeleteCollection={handleDeleteCollection}
-          onRemoveMovie={handleRemoveMovieFromCollection}
-          onFavoriteToggle={handleFavoriteToggle}
-          isFavorite={isFavorite}
-          onMovieClick={handleMovieClick}
-          discoverCollections={discoverCollections}
-          onFollowCollection={handleFollowCollection}
-        />
-      ) : activeView === 'favorites' || activeView === 'watchlist' ? (
-        <FavoritesPage
-          favorites={favorites}
-          onBack={() => navigate('/')}
-          onMovieClick={handleMovieClick}
-          onFavoriteToggle={handleFavoriteToggle}
-          isFavorite={isFavorite}
-          isLoading={favoritesLoading}
-          collectionLabel={activeView === 'favorites' ? 'Favorites' : 'Watchlist'}
-        />
-      ) : (
-      <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-8 sm:px-6 lg:px-8">
-        <motion.section
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.75, ease: 'easeOut' }}
-          className="grid min-h-[calc(100vh-8rem)] items-center gap-12 py-12 md:min-h-[calc(100vh-7rem)] lg:grid-cols-[1.05fr_0.95fr]"
-        >
-          <div className="space-y-8">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.26em] text-cyan-700 shadow-[0_0_32px_rgba(34,211,238,0.18)] backdrop-blur-xl dark:text-cyan-100">
-              <FiZap />
-              OMDb powered cinema radar
-            </div>
-            <div className="max-w-3xl">
-              <h1 className="text-4xl font-black leading-[0.95] tracking-normal text-theme-strong sm:text-5xl lg:text-6xl xl:text-7xl">
-                CineVerse
-                <span className="block text-slate-700 dark:text-cyan-200">
-                  Neural Listings
-                </span>
-              </h1>
-              <p className="mt-6 max-w-2xl text-base leading-7 text-theme-muted sm:text-lg">
-                Search the OMDb universe, build a live watchlist, and save your watchlist into SQLite-backed storage through the FastAPI backend.
-              </p>
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 text-sm text-theme-muted">
-              {isAuthenticated ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p>
-                    Signed in as <span className="font-black text-theme-strong">{authEmail}</span>
-                  </p>
-                  {profile?.is_admin && (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/admin')}
-                      className="inline-flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-100 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-900 shadow-none transition hover:bg-amber-200 dark:border-amber-300/30 dark:bg-amber-300/10 dark:text-amber-100 dark:hover:bg-amber-300/20"
-                    >
-                      Admin Dashboard
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <p>Watchlist items save locally. Login or register to save them with the backend API.</p>
-              )}
-            </div>
-            <SearchBar
-              onSearch={handleSearch}
-              isLoading={isLoading}
-              recentSearches={recentSearches}
-              onRecentSearch={handleSearch}
-              historyPagination={{
-                page: searchHistoryPage,
-                totalPages: searchHistoryTotalPages,
-                totalItems: searchHistoryTotal,
-                limit: searchHistoryLimit,
-              }}
-              onHistoryPageChange={handleSearchHistoryPageChange}
-              isAuthenticated={isAuthenticated}
-            />
-          </div>
-
-          <motion.div
-            className="relative hidden min-h-[24rem] md:block md:min-h-[32rem] lg:min-h-[34rem]"
-            style={{ perspective: 1200 }}
-            initial={{ opacity: 0, rotateY: -18, y: 40 }}
-            animate={{ opacity: 1, rotateY: 0, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.12 }}
-          >
-            {heroMovie && (
-              <div className="absolute inset-0 rotate-2 rounded-[2rem] border border-white/15 bg-white/10 p-4 shadow-[0_30px_100px_rgba(79,70,229,0.34)] backdrop-blur-2xl">
-                <img
-                  src={heroPosterSrc}
-                  alt={heroMovie.Title}
-                  className="h-full w-full rounded-[1.45rem] object-cover object-center"
-                />
-                <div className="absolute inset-4 rounded-[1.45rem] bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/15" />
-                <div className="absolute bottom-10 left-10 right-10">
-                  <p className="text-sm font-bold uppercase tracking-[0.28em] text-[#67e8f9] drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">Featured signal</p>
-                  <h2 className="mt-2 text-4xl font-black text-[#f8fafc] drop-shadow-[0_3px_12px_rgba(0,0,0,0.85)]">{heroMovie.Title}</h2>
-                  <p className="mt-2 text-[#e2e8f0] drop-shadow-[0_2px_8px_rgba(0,0,0,0.75)]">{heroMovie.Type} / {heroMovie.Year}</p>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </motion.section>
-
-        <section className="relative">
-          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.22em] text-slate-600 dark:text-cyan-200">
-                {isDiscoveryMode ? <FiTrendingUp /> : <FiFilm />}
-                {isDiscoveryMode ? 'Trending movies' : `Search results for "${searchTerm}"`}
-              </div>
-              <h2 className="mt-2 text-3xl font-black text-theme-strong sm:text-4xl">
-                {isDiscoveryMode ? 'Featured launch queue' : 'Matched transmissions'}
-              </h2>
-            </div>
-          </div>
-
-          <AnimatePresence mode="wait">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                className="mb-10 flex items-start gap-3 rounded-2xl border border-rose-300/30 bg-rose-500/10 p-5 text-rose-100 shadow-[0_0_32px_rgba(244,63,94,0.12)] backdrop-blur-xl"
-              >
-                <FiAlertTriangle className="mt-1 shrink-0" />
-                <span>{error}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {(isLoading || featuredLoading) && <Loader />}
-
-          {!isLoading && !featuredLoading && !isDiscoveryMode && visibleMovies.length > 0 && (
-            <motion.div
-              layout
-              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              initial="hidden"
-              animate="show"
-              variants={{
-                hidden: {},
-                show: { transition: { staggerChildren: 0.07 } },
-              }}
-            >
-              {visibleMovies.map((movie) => (
-                <motion.div
-                  key={movie.imdbID}
-                  variants={{
-                    hidden: { opacity: 0, y: 30, scale: 0.96 },
-                    show: { opacity: 1, y: 0, scale: 1 },
-                  }}
-                  transition={{ duration: 0.45, ease: 'easeOut' }}
-                >
-                  <MovieCard
-                    movie={movie}
-                    onClick={() => handleMovieClick(movie)}
-                    onFavoriteToggle={handleFavoriteToggle}
-                    isFavorite={isFavorite(movie.imdbID)}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-
-          {!isLoading && !featuredLoading && isDiscoveryMode && (
-            <div className="space-y-16">
-              {showRecommendedSection && (
-                <section>
-                  <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <p className="text-sm font-black uppercase tracking-[0.22em] text-fuchsia-600 dark:text-fuchsia-200">
-                        Personalized picks
-                      </p>
-                      <h3 className="mt-2 text-2xl font-black text-theme-strong sm:text-3xl">
-                        Recommended For You
-                      </h3>
-                    </div>
-                    {!isAuthenticated && (
-                      <p className="max-w-xl text-sm text-theme-muted">
-                        Sign in to load personalized recommendations based on your watchlist, search history, and recently viewed movies.
-                      </p>
-                    )}
-                  </div>
-
-                  {recommendedLoading ? (
-                    <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-theme-muted backdrop-blur-xl">
-                      Loading your recommendations...
-                    </div>
-                  ) : recommendedMovies.length > 0 ? (
-                    <motion.div
-                      className="mx-auto grid max-w-7xl grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
-                      initial="hidden"
-                      whileInView="show"
-                      viewport={{ once: true, margin: '-80px' }}
-                      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-                    >
-                      {recommendedMovies.map((movie) => (
-                        <motion.div
-                          key={movie.imdbID}
-                          variants={{
-                            hidden: { opacity: 0, y: 28, scale: 0.96 },
-                            show: { opacity: 1, y: 0, scale: 1 },
-                          }}
-                        >
-                          <MovieCard
-                            movie={movie}
-                            onClick={() => handleMovieClick(movie)}
-                            onFavoriteToggle={handleFavoriteToggle}
-                            isFavorite={isFavorite(movie.imdbID)}
-                            compact
-                            recommended
-                          />
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  ) : isAuthenticated ? (
-                    <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center text-theme-muted backdrop-blur-xl">
-                      Start searching and adding movies to your watchlist to get personalized recommendations.
-                    </div>
-                  ) : null}
-                </section>
-              )}
-
-              {trendingMovies.length > 0 && (
-                <MovieSection
-                  title="Trending movies"
-                  eyebrow="Live audience heat"
-                  movies={trendingMovies}
-                  onMovieClick={handleMovieClick}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  isFavorite={isFavorite}
-                />
-              )}
-              {popularMovies.length > 0 && (
-                <MovieSection
-                  title="Popular movies"
-                  eyebrow="All-time sci-fi picks"
-                  movies={popularMovies}
-                  onMovieClick={handleMovieClick}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  isFavorite={isFavorite}
-                />
-              )}
-              {telugu2025Movies.length > 0 && (
-                <MovieSection
-                  title="Telugu movies 2025"
-                  eyebrow="Local API collection"
-                  movies={telugu2025Movies}
-                  onMovieClick={handleMovieClick}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  isFavorite={isFavorite}
-                />
-              )}
-              {trendingMovies.length === 0 && popularMovies.length === 0 && telugu2025Movies.length === 0 && <NoMoviesFound />}
-            </div>
-          )}
-
-          {!isLoading && !featuredLoading && !isDiscoveryMode && visibleMovies.length === 0 && (
-            <NoMoviesFound />
-          )}
-
-          {!isLoading && movies.length > 0 && (
-            <div className="mt-12">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-        </section>
-      </main>
-      )}
-
-      <AnimatePresence>
-        {selectedMovie && (
-          <MovieModal
-            movie={selectedMovie}
-            isOpen={isModalOpen}
-            onClose={handleModalClose}
-            isFavorite={isFavorite(selectedMovie.imdbID)}
-            onFavoriteToggle={handleFavoriteToggle}
-            isAuthenticated={isAuthenticated}
-            authEmail={authEmail}
-            onRequireAuth={() => handleAuthOpen('login')}
-            onMovieViewed={refreshRecommendations}
-            onNotificationCreated={loadNotifications}
-            collections={collections}
-            onCreateCollection={handleCreateCollection}
-            onAddMovieToCollection={handleAddMovieToCollection}
-          />
-        )}
-      </AnimatePresence>
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        mode={authMode}
-        onClose={() => setIsAuthModalOpen(false)}
-        onSubmit={handleAuthSubmit}
-        onModeChange={setAuthMode}
-        isLoading={authLoading}
-        error={authError}
-      />
-    </div>
+    <HomeContent
+      {...{
+        isDark, favorites, activeView, navigate, isAuthenticated, authEmail, profile,
+        compareMovies: normalizedCompareMovies,
+        unreadNotifications, isNotificationPanelOpen, notifications, collections,
+        collectionsLoading, discoverCollections, favoritesLoading, searchTerm,
+        visibleMovies, isDiscoveryMode, heroMovie, heroPosterSrc, isLoading,
+        recentSearches, searchHistoryPage, searchHistoryTotalPages, searchHistoryTotal,
+        searchHistoryLimit, featuredLoading, error, showRecommendedSection,
+        recommendedLoading, recommendedMovies, trendingMovies, popularMovies,
+        telugu2025Movies, currentPage, totalPages, movies, selectedMovie, isModalOpen,
+        isAuthModalOpen, authMode, authLoading, authError,
+        handleAuthOpen, handleProfileOpen, handleLogout, handleNotificationsToggle,
+        handleMarkNotificationRead, handleMarkAllNotificationsRead, handleCreateCollection,
+        handleUpdateCollection, handleDeleteCollection, handleRemoveMovieFromCollection,
+        handleFavoriteToggle, isFavorite, handleCompareToggle, handleRemoveCompareMovie,
+        handleClearCompareMovies, isCompareSelected, isCompareLimitReached, handleMovieClick, handleFollowCollection,
+        handleSearch, handleSearchHistoryPageChange, handlePageChange, handleModalClose,
+        refreshRecommendations, loadNotifications, handleAuthSubmit, setAuthMode,
+        handlePasswordResetRequest, handleAddMovieToCollection, setIsAuthModalOpen,
+        setIsNotificationPanelOpen,
+      }}
+    />
   );
 };
-
-const MovieSection = ({ title, eyebrow, movies, onMovieClick, onFavoriteToggle, isFavorite }) => (
-  <section>
-    <div className="mb-6">
-      <p className="text-sm font-black uppercase tracking-[0.22em] text-fuchsia-600 dark:text-fuchsia-200">{eyebrow}</p>
-      <h3 className="mt-2 text-2xl font-black text-theme-strong sm:text-3xl">{title}</h3>
-    </div>
-    <motion.div
-      className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: '-80px' }}
-      variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
-    >
-      {movies.map((movie) => (
-        <motion.div
-          key={movie.imdbID}
-          variants={{
-            hidden: { opacity: 0, y: 28, scale: 0.96 },
-            show: { opacity: 1, y: 0, scale: 1 },
-          }}
-        >
-          <MovieCard
-            movie={movie}
-            onClick={() => onMovieClick(movie)}
-            onFavoriteToggle={onFavoriteToggle}
-            isFavorite={isFavorite(movie.imdbID)}
-          />
-        </motion.div>
-      ))}
-    </motion.div>
-  </section>
-);
-
-const NoMoviesFound = () => (
-  <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center text-theme-muted backdrop-blur-xl">
-    No movies found.
-  </div>
-);

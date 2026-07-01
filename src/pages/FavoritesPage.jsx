@@ -12,6 +12,9 @@ export const FavoritesPage = ({
   isFavorite,
   isLoading = false,
   collectionLabel = 'Watchlist',
+  onCompareToggle,
+  isCompareSelected = () => false,
+  isCompareLimitReached = false,
 }) => {
   const isFavorites = collectionLabel === 'Favorites';
   const heading = isFavorites ? 'Favorites' : 'Watchlist';
@@ -77,6 +80,9 @@ export const FavoritesPage = ({
                 onClick={() => onMovieClick(movie)}
                 onFavoriteToggle={onFavoriteToggle}
                 isFavorite={isFavorite(movie.imdbID)}
+                onCompareToggle={onCompareToggle}
+                isCompareSelected={isCompareSelected(movie.imdbID)}
+                isCompareDisabled={isCompareLimitReached}
               />
             </motion.div>
           ))}
