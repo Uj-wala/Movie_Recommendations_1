@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FiArrowLeft, FiLock } from 'react-icons/fi';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../services/api';
 import { useToast } from '../context/useToast';
 
@@ -14,12 +14,12 @@ const validatePassword = (value) => {
 
 export const ResetPasswordPage = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { addToast } = useToast();
-  const token = searchParams.get('token') || '';
+  const token = (searchParams.get('token') || '').trim();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -39,6 +39,7 @@ export const ResetPasswordPage = () => {
 
     setIsSubmitting(true);
     setError('');
+    setSuccessMessage('');
 
     const result = await resetPassword(token, newPassword);
     if (!result.success) {
@@ -48,8 +49,10 @@ export const ResetPasswordPage = () => {
     }
 
     addToast('Password updated successfully. Please sign in.', 'success');
+    setSuccessMessage(result.data?.message || 'Password updated successfully. Please sign in with your new password.');
+    setNewPassword('');
+    setConfirmPassword('');
     setIsSubmitting(false);
-    navigate('/');
   };
 
   return (
@@ -81,6 +84,12 @@ export const ResetPasswordPage = () => {
             </div>
           )}
 
+          {successMessage && (
+            <div className="mb-5 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+              {successMessage}
+            </div>
+          )}
+
           <div className="space-y-4">
             <label className="block text-sm font-semibold text-slate-300">
               New password
@@ -90,8 +99,10 @@ export const ResetPasswordPage = () => {
                 onChange={(event) => {
                   setNewPassword(event.target.value);
                   setError('');
+                  setSuccessMessage('');
                 }}
                 autoComplete="new-password"
+                disabled={!token || Boolean(successMessage)}
                 className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
               />
             </label>
@@ -104,8 +115,10 @@ export const ResetPasswordPage = () => {
                 onChange={(event) => {
                   setConfirmPassword(event.target.value);
                   setError('');
+                  setSuccessMessage('');
                 }}
                 autoComplete="new-password"
+                disabled={!token || Boolean(successMessage)}
                 className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
               />
             </label>
@@ -118,12 +131,21 @@ export const ResetPasswordPage = () => {
 
             <button
               type="submit"
-              disabled={isSubmitting || !token || !newPassword || !confirmPassword}
+              disabled={isSubmitting || !token || Boolean(successMessage) || !newPassword || !confirmPassword}
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FiLock />
               {isSubmitting ? 'Updating...' : 'Update password'}
             </button>
+
+            {successMessage && (
+              <Link
+                to="/"
+                className="inline-flex w-full items-center justify-center rounded-2xl border border-cyan-300/40 px-5 py-3 text-sm font-black uppercase tracking-[0.2em] text-cyan-100 transition hover:border-cyan-200 hover:text-white"
+              >
+                Back to sign in
+              </Link>
+            )}
           </div>
         </form>
       </div>

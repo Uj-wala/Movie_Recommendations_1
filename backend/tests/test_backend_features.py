@@ -1,7 +1,7 @@
 import os
 import unittest
 from pathlib import Path
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -30,7 +30,7 @@ from app.models.search_history import SearchHistory  # noqa: E402
 from app.models.watchlist import Watchlist  # noqa: E402
 from app.models.user import User  # noqa: E402
 from app.schemas.history import SearchKeywordQuery  # noqa: E402
-from app.services.auth_service import create_access_token  # noqa: E402
+from app.services.auth_service import create_access_token, hash_password  # noqa: E402
 
 
 def reset_database():
@@ -799,7 +799,7 @@ class BackendFeatureTests(unittest.TestCase):
             json={"token": "wrong-reset-token-value-that-is-long-enough", "new_password": "Resetpass123"},
         )
         self.assertEqual(wrong_token.status_code, 400, wrong_token.text)
-        self.assertEqual(wrong_token.json()["message"], "Invalid or expired reset link")
+        self.assertEqual(wrong_token.json()["message"], "Invalid reset link. Request a new password reset link.")
 
         confirmed = self.client.post(
             "/reset-password/confirm",
@@ -813,6 +813,36 @@ class BackendFeatureTests(unittest.TestCase):
 
         new_login = self.client.post("/login", json={"email": "reset@example.com", "password": "Resetpass123"})
         self.assertEqual(new_login.status_code, 200, new_login.text)
+
+        db = SessionLocal()
+        try:
+            reset_code = db.query(PasswordResetCode).one()
+            self.assertIsNotNone(reset_code.used_at)
+        finally:
+            db.close()
+
+    def test_password_reset_rejects_expired_token_and_invalidates_it(self):
+        self.register_and_login(email="expired-reset@example.com", password="Password123")
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.email == "expired-reset@example.com").one()
+            reset_token = "expired-reset-token-value-that-is-long-enough"
+            reset_code = PasswordResetCode(
+                user_id=user.id,
+                code_hash=hash_password(reset_token),
+                expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
+            )
+            db.add(reset_code)
+            db.commit()
+        finally:
+            db.close()
+
+        response = self.client.post(
+            "/reset-password/confirm",
+            json={"token": reset_token, "new_password": "Resetpass123"},
+        )
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(response.json()["message"], "Reset link has expired. Request a new password reset link.")
 
         db = SessionLocal()
         try:

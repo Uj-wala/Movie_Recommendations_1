@@ -33,6 +33,14 @@ class ResetPasswordRequest(BaseModel):
     token: str = Field(min_length=32, max_length=256)
     new_password: str
 
+    @field_validator("token")
+    @classmethod
+    def validate_token(cls, value: str) -> str:
+        token = value.strip()
+        if not token:
+            raise ValueError("Reset token is required")
+        return token
+
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, value: str) -> str:

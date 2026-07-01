@@ -24,6 +24,7 @@ from app.schemas.auth import (
 from app.config.settings import settings
 from app.services.auth_service import create_access_token, get_current_user, hash_password, password_hash_needs_update, sync_admin_flag, verify_password
 from app.services.email_service import send_password_reset_link
+from app.services.password_reset_service import PasswordResetError, confirm_password_reset
 
 router = APIRouter(tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -115,34 +116,10 @@ def request_password_reset(payload: PasswordResetCodeRequest, db: Session = Depe
 @router.post("/reset-password")
 @router.post("/reset-password/confirm")
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
-    reset_code = (
-        db.query(PasswordResetCode)
-        .filter(
-            PasswordResetCode.used_at.is_(None),
-        )
-        .order_by(PasswordResetCode.created_at.desc())
-        .all()
-    )
-
-    now = datetime.now(UTC).replace(tzinfo=None)
-    matching_reset = None
-    for candidate in reset_code:
-        if candidate.expires_at < now:
-            continue
-        if verify_password(payload.token, candidate.code_hash):
-            matching_reset = candidate
-            break
-
-    if not matching_reset:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset link")
-
-    user = db.query(User).filter(User.id == matching_reset.user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    user.password_hash = hash_password(payload.new_password)
-    matching_reset.used_at = now
-    db.commit()
+    try:
+        confirm_password_reset(db, payload.token, payload.new_password)
+    except PasswordResetError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
     return {"success": True, "message": "Password updated successfully"}
 

@@ -7,16 +7,72 @@ const placeholderImage = 'https://placehold.co/600x900/07111f/67e8f9?text=No+Pos
 const getPoster = (movie) => (movie.Poster && movie.Poster !== 'N/A' ? movie.Poster : placeholderImage);
 
 const comparisonRows = [
-  ['Year', (movie) => movie.Year || 'N/A'],
-  ['Type', (movie) => movie.Type || 'movie'],
-  ['IMDb Rating', (movie) => movie.imdbRating || 'N/A'],
-  ['Community Rating', (movie) => movie.averageRating ?? movie.communityAverageRating ?? 'N/A'],
-  ['Runtime', (movie) => movie.Runtime || 'N/A'],
-  ['Genre', (movie) => movie.Genre || 'N/A'],
-  ['Director', (movie) => movie.Director || 'N/A'],
-  ['Cast', (movie) => movie.Actors || 'N/A'],
-  ['Plot', (movie) => movie.Plot || 'N/A'],
+  { label: 'Year', getValue: (movie) => movie.Year || 'N/A', compareAs: 'number', higherIsBetter: true },
+  { label: 'Type', getValue: (movie) => movie.Type || 'movie' },
+  { label: 'IMDb Rating', getValue: (movie) => movie.imdbRating || 'N/A', compareAs: 'number', higherIsBetter: true },
+  { label: 'Community Rating', getValue: (movie) => movie.averageRating ?? movie.communityAverageRating ?? 'N/A', compareAs: 'number', higherIsBetter: true },
+  { label: 'Runtime', getValue: (movie) => movie.Runtime || 'N/A', compareAs: 'number' },
+  { label: 'Genre', getValue: (movie) => movie.Genre || 'N/A' },
+  { label: 'Director', getValue: (movie) => movie.Director || 'N/A' },
+  { label: 'Cast', getValue: (movie) => movie.Actors || 'N/A' },
+  { label: 'Plot', getValue: (movie) => movie.Plot || 'N/A' },
 ];
+
+const normalizeComparisonValue = (value) => String(value ?? 'N/A').trim().toLowerCase();
+
+const parseComparisonNumber = (value) => {
+  const parsed = parseFloat(String(value ?? '').replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getDifferenceState = (row, movies, movieIndex) => {
+  if (movies.length !== 2) {
+    return { isDifferent: false, tone: 'same' };
+  }
+
+  const values = movies.map((movie) => row.getValue(movie));
+  const normalizedValues = values.map(normalizeComparisonValue);
+  const isDifferent = normalizedValues[0] !== normalizedValues[1];
+
+  if (!isDifferent) {
+    return { isDifferent: false, tone: 'same' };
+  }
+
+  if (row.compareAs === 'number') {
+    const numbers = values.map(parseComparisonNumber);
+    if (numbers.every((number) => number !== null) && numbers[0] !== numbers[1]) {
+      if (!row.higherIsBetter) {
+        return { isDifferent: true, tone: movieIndex === 0 ? 'left' : 'right' };
+      }
+
+      return {
+        isDifferent: true,
+        tone: numbers[movieIndex] > numbers[1 - movieIndex] ? 'higher' : 'lower',
+      };
+    }
+  }
+
+  return { isDifferent: true, tone: movieIndex === 0 ? 'left' : 'right' };
+};
+
+const differenceToneClasses = {
+  same: 'text-slate-600 dark:text-slate-200',
+  higher: 'border-emerald-300 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200 dark:border-emerald-300/35 dark:bg-emerald-400/15 dark:text-emerald-100 dark:ring-emerald-300/20',
+  lower: 'border-rose-300 bg-rose-50 text-rose-900 ring-1 ring-rose-200 dark:border-rose-300/35 dark:bg-rose-400/15 dark:text-rose-100 dark:ring-rose-300/20',
+  left: 'border-cyan-300 bg-cyan-50 text-cyan-950 ring-1 ring-cyan-200 dark:border-cyan-300/35 dark:bg-cyan-400/15 dark:text-cyan-100 dark:ring-cyan-300/20',
+  right: 'border-amber-300 bg-amber-50 text-amber-950 ring-1 ring-amber-200 dark:border-amber-300/35 dark:bg-amber-400/15 dark:text-amber-100 dark:ring-amber-300/20',
+};
+
+const getDifferenceClasses = (row, movies, movieIndex) => {
+  const state = getDifferenceState(row, movies, movieIndex);
+  const baseClasses = 'rounded-xl border px-3 py-2 transition';
+
+  if (!state.isDifferent) {
+    return `${baseClasses} border-transparent ${differenceToneClasses.same}`;
+  }
+
+  return `${baseClasses} font-semibold shadow-sm ${differenceToneClasses[state.tone]}`;
+};
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -378,23 +434,25 @@ export const CompareMoviesPage = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white dark:divide-white/10 dark:bg-slate-950/35">
-                  {comparisonRows.map(([label, getValue]) => (
+                  {comparisonRows.map((row, rowIndex) => (
                     <motion.tr
-                      key={label}
+                      key={row.label}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.05 * comparisonRows.findIndex(([rowLabel]) => rowLabel === label), duration: 0.32 }}
+                      transition={{ delay: 0.05 * rowIndex, duration: 0.32 }}
                       className="transition hover:bg-slate-50 dark:hover:bg-slate-950/50"
                     >
                       <td className="px-4 py-3 font-black text-slate-700 sm:px-5 sm:py-4 w-36 dark:text-cyan-100">
-                        {label}
+                        {row.label}
                       </td>
-                      {movies.map((movie) => (
+                      {movies.map((movie, movieIndex) => (
                         <td
-                          key={`${movie.imdbID}-${label}`}
-                          className="px-4 py-3 leading-6 text-slate-600 sm:px-5 sm:py-4 dark:text-slate-200"
+                          key={`${movie.imdbID}-${row.label}`}
+                          className="px-4 py-3 leading-6 sm:px-5 sm:py-4"
                         >
-                          {getValue(movie)}
+                          <div className={getDifferenceClasses(row, movies, movieIndex)}>
+                            {row.getValue(movie)}
+                          </div>
                         </td>
                       ))}
                     </motion.tr>
@@ -406,16 +464,16 @@ export const CompareMoviesPage = ({
             {/* Mobile Stacked View */}
             <div className="block sm:hidden">
               <div className="space-y-6 p-4">
-                {comparisonRows.map(([label, getValue]) => (
-                  <div key={label} className="border-b border-slate-200 pb-4 last:border-b-0 last:pb-0 dark:border-white/10">
+                {comparisonRows.map((row) => (
+                  <div key={row.label} className="border-b border-slate-200 pb-4 last:border-b-0 last:pb-0 dark:border-white/10">
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-700 mb-3 dark:text-cyan-100">
-                      {label}
+                      {row.label}
                     </p>
                     <div className="space-y-2">
-                      {movies.map((movie) => (
-                        <div key={`${movie.imdbID}-${label}`} className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-950/50">
+                      {movies.map((movie, movieIndex) => (
+                        <div key={`${movie.imdbID}-${row.label}`} className={getDifferenceClasses(row, movies, movieIndex)}>
                           <p className="text-xs text-slate-500 mb-1 dark:text-slate-400">{movie.Title}</p>
-                          <p className="text-sm leading-6 text-slate-700 dark:text-slate-200">{getValue(movie)}</p>
+                          <p className="text-sm leading-6">{row.getValue(movie)}</p>
                         </div>
                       ))}
                     </div>
